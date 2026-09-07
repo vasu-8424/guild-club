@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "114991745567",
+    "project_id": "toyvise-c8d15",
+    "storage_bucket": "toyvise-c8d15.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:114991745567:android:8a95a1b0464dbc5cc4e32a",
+        "android_client_info": {
+          "package_name": "com.toyverse.app.toyverse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDi3zOmosFQtc4KxBMnLfoG6076MSHNRoo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
