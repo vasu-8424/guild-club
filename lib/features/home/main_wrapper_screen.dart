@@ -97,6 +97,7 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final user = ref.watch(userProvider);
+    final wishlist = ref.watch(wishlistProvider);
     final fetchedLocation = ref.watch(fetchedLocationProvider);
     final addresses = ref.watch(addressesProvider);
     final defaultAddress = addresses.where((a) => a.isDefault).firstOrNull ?? addresses.firstOrNull;
@@ -104,6 +105,7 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
         ? '${defaultAddress.label} • ${defaultAddress.city.isNotEmpty ? defaultAddress.city : defaultAddress.fullAddress}'
         : fetchedLocation;
     final cartCount = cart.fold(0, (sum, item) => sum + item.quantity);
+    final wishlistCount = wishlist.length;
     _syncCoinPulse(user.rewardCoins);
 
     return Scaffold(
@@ -297,6 +299,24 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                                   _buildHeaderIconButton(
                                     icon: Icons.search_rounded,
                                     onTap: () => context.push('/search'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  badges.Badge(
+                                    position: badges.BadgePosition.topEnd(top: -2, end: -2),
+                                    badgeContent: Text(
+                                      '$wishlistCount',
+                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                    showBadge: wishlistCount > 0,
+                                    badgeStyle: const badges.BadgeStyle(
+                                      badgeColor: ToyVerseTheme.primaryRed,
+                                      padding: EdgeInsets.all(5),
+                                      elevation: 0,
+                                    ),
+                                    child: _buildHeaderIconButton(
+                                      icon: Icons.favorite_border_rounded,
+                                      onTap: () => context.push('/wishlist'),
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
                                   badges.Badge(

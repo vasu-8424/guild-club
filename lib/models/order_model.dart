@@ -209,19 +209,31 @@ class OrderModel {
         statusHistory = statusHistory ?? {
           'placed': (createdAt ?? DateTime.now()).toIso8601String(),
         },
-        originLocation = originLocation ?? 'Guild Club Fulfillment Hub, Indiranagar, Bengaluru',
-        originLat = originLat ?? 12.9716,
-        originLng = originLng ?? 77.5946,
+        originLocation = originLocation ?? 'Guild Club Fulfillment Hub, Hyderabad, Telangana',
+        originLat = originLat ?? 17.3850,
+        originLng = originLng ?? 78.4867,
         deliveryAddressText = deliveryAddressText ?? address?.fullAddress,
         destinationLat = destinationLat ?? address?.latitude,
         destinationLng = destinationLng ?? address?.longitude,
-        etaMinutes = etaMinutes ?? 35,
+        etaMinutes = etaMinutes ?? (address?.city.toLowerCase().contains('hyderabad') == true ? 2880 : 10080),
         deliveryPartnerName = deliveryPartnerName ?? 'Alex (Guild Club Logistics)',
         deliveryPartnerPhone = deliveryPartnerPhone ?? '+91 98765 43210',
         customOrderNumber = orderNumber,
         customDiscountAmount = discountAmount,
         customShippingFee = shippingFee,
         customPaymentMethod = paymentMethod;
+
+  /// Returns true if destination is local to Hyderabad / Telangana
+  bool get isLocalToHyderabad {
+    final addrLower = (deliveryAddressText ?? address?.fullAddress ?? address?.city ?? '').toLowerCase();
+    return addrLower.contains('hyderabad') ||
+        addrLower.contains('secunderabad') ||
+        addrLower.contains('telangana') ||
+        addrLower.contains('5000');
+  }
+
+  /// Human-readable delivery timeline description based on destination
+  String get deliveryTimelineText => isLocalToHyderabad ? '2–3 Working Days' : '7–8 Working Days';
 
   /// Helper to get formatted timestamp for a given status step
   String? getStatusTimestamp(OrderStatus stage) {
@@ -238,7 +250,7 @@ class OrderModel {
     }
   }
 
-  /// Estimated arrival string
+  /// Estimated arrival string based on Hyderabad local vs national delivery
   String get estimatedDeliveryFormatted {
     if (status == OrderStatus.delivered) {
       final deliveredTime = getStatusTimestamp(OrderStatus.delivered);
@@ -247,11 +259,11 @@ class OrderModel {
     if (status == OrderStatus.cancelled) {
       return 'Order Cancelled';
     }
-    final targetTime = createdAt.add(Duration(minutes: etaMinutes)).toLocal();
-    final hour = targetTime.hour > 12 ? targetTime.hour - 12 : (targetTime.hour == 0 ? 12 : targetTime.hour);
-    final minute = targetTime.minute.toString().padLeft(2, '0');
-    final period = targetTime.hour >= 12 ? 'PM' : 'AM';
-    return 'Today by $hour:$minute $period (approx. $etaMinutes mins)';
+    final daysToAdd = isLocalToHyderabad ? 3 : 8;
+    final targetDate = createdAt.add(Duration(days: daysToAdd)).toLocal();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final dateStr = '${targetDate.day} ${months[targetDate.month - 1]}';
+    return '$deliveryTimelineText (by $dateStr)';
   }
 
   OrderModel copyWith({
@@ -357,9 +369,9 @@ class OrderModel {
       status: parsedStatus,
       statusUpdatedAt: statusUpdatedAtDt,
       statusHistory: parsedHistory,
-      originLocation: json['origin_location']?.toString() ?? 'Guild Club Fulfillment Hub, Indiranagar, Bengaluru',
-      originLat: (json['origin_lat'] as num?)?.toDouble() ?? 12.9716,
-      originLng: (json['origin_lng'] as num?)?.toDouble() ?? 77.5946,
+      originLocation: json['origin_location']?.toString() ?? 'Guild Club Fulfillment Hub, Hyderabad, Telangana',
+      originLat: (json['origin_lat'] as num?)?.toDouble() ?? 17.3850,
+      originLng: (json['origin_lng'] as num?)?.toDouble() ?? 78.4867,
       deliveryAddressText: json['delivery_address_text']?.toString() ?? resolvedAddress?.fullAddress,
       destinationLat: (json['destination_lat'] as num?)?.toDouble() ?? resolvedAddress?.latitude,
       destinationLng: (json['destination_lng'] as num?)?.toDouble() ?? resolvedAddress?.longitude,
@@ -378,20 +390,9 @@ class OrderModel {
       'items': items.map((i) => i.toJson()).toList(),
       'subtotal': subtotal,
       'total': total,
-      if (razorpayPaymentId != null) 'razorpay_payment_id': razorpayPaymentId,
-      if (razorpayOrderId != null) 'razorpay_order_id': razorpayOrderId,
+      if (razorpayPaymentId != null && razorpayPaymentId!.isNotEmpty) 'razorpay_payment_id': razorpayPaymentId,
+      if (razorpayOrderId != null && razorpayOrderId!.isNotEmpty) 'razorpay_order_id': razorpayOrderId,
       'status': status.dbValue,
-      'status_updated_at': statusUpdatedAt.toIso8601String(),
-      'status_history': statusHistory,
-      'origin_location': originLocation,
-      'origin_lat': originLat,
-      'origin_lng': originLng,
-      if (deliveryAddressText != null) 'delivery_address_text': deliveryAddressText,
-      if (destinationLat != null) 'destination_lat': destinationLat,
-      if (destinationLng != null) 'destination_lng': destinationLng,
-      'eta_minutes': etaMinutes,
-      'delivery_partner_name': deliveryPartnerName,
-      'delivery_partner_phone': deliveryPartnerPhone,
       'created_at': createdAt.toIso8601String(),
     };
   }

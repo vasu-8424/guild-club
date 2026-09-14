@@ -31,7 +31,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
   final TextEditingController _giftNoteController = TextEditingController(text: 'Happy Birthday Leo! Love Mom & Dad');
   final TextEditingController _couponController = TextEditingController();
 
-  bool _isGiftWrapped = false;
   double _appliedDiscount = 0.0;
   String? _appliedCouponCode;
   bool _isProcessingPayment = false;
@@ -103,15 +102,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
 
 
 
-  ({double discountedSubtotal, double giftWrapFee, double gst, double total}) _calculateTotals(double subtotal) {
+  ({double discountedSubtotal, double deliveryFee, double gst, double total}) _calculateTotals(double subtotal) {
     final rawDiscountedSubtotal = subtotal - _appliedDiscount;
     final discountedSubtotal = rawDiscountedSubtotal < 0 ? 0.0 : rawDiscountedSubtotal;
-    final giftWrapFee = _isGiftWrapped ? 49.0 : 0.0;
-    final gst = discountedSubtotal * 0.12;
-    final total = discountedSubtotal + giftWrapFee + gst;
+    final deliveryFee = discountedSubtotal >= 499 || discountedSubtotal == 0 ? 0.0 : 49.0;
+    final gst = discountedSubtotal * 0.05;
+    final total = discountedSubtotal + deliveryFee + gst;
     return (
       discountedSubtotal: discountedSubtotal,
-      giftWrapFee: giftWrapFee,
+      deliveryFee: deliveryFee,
       gst: gst,
       total: total,
     );
@@ -177,9 +176,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
       deliveryAddressText: selectedAddress?.fullAddress,
       destinationLat: selectedAddress?.latitude,
       destinationLng: selectedAddress?.longitude,
-      originLocation: 'Guild Club Fulfillment Hub, Indiranagar, Bengaluru',
-      originLat: 12.9716,
-      originLng: 77.5946,
+      originLocation: 'Guild Club Fulfillment Hub, Hyderabad, Telangana',
+      originLat: 17.3850,
+      originLng: 78.4867,
       items: cartItems
           .map(
             (item) => OrderItemModel(
@@ -272,9 +271,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
       deliveryAddressText: address?.fullAddress,
       destinationLat: address?.latitude,
       destinationLng: address?.longitude,
-      originLocation: 'Guild Club Fulfillment Hub, Indiranagar, Bengaluru',
-      originLat: 12.9716,
-      originLng: 77.5946,
+      originLocation: 'Guild Club Fulfillment Hub, Hyderabad, Telangana',
+      originLat: 17.3850,
+      originLng: 78.4867,
       items: cartItems
           .map(
             (item) => OrderItemModel(
@@ -333,7 +332,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          onPressed: () => context.pop(),
+                          onPressed: () => context.canPop() ? context.pop() : context.go('/cart'),
                           icon: const CircleAvatar(
                             backgroundColor: Colors.white,
                             child: Icon(Icons.arrow_back_rounded, color: ToyVerseTheme.textDark),
@@ -370,14 +369,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                         }
                                       },
                                       child: Text(
-                                        '+ Add New',
+                                        addresses.isEmpty ? '+ Add Address' : 'Change / + Add New',
                                         style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w700, color: ToyVerseTheme.primaryRoyalBlue),
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                if (addresses.isEmpty)
+                                const SizedBox(height: 12),
+                                if (selectedAddress == null)
                                   Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
@@ -387,7 +386,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Text(
-                                            'No saved addresses yet. Tap + Add New to select location.',
+                                            'No delivery address set. Tap Change / + Add New to set location.',
                                             style: AppTypography.bodyMedium.copyWith(fontSize: 13),
                                           ),
                                         ),
@@ -395,76 +394,61 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                     ),
                                   )
                                 else
-                                  Column(
-                                    children: List.generate(addresses.length, (index) {
-                                      final isSelected = _selectedAddressIndex == index;
-                                      final addr = addresses[index];
-                                      return _CalmPress(
-                                        onTap: () => setState(() => _selectedAddressIndex = index),
-                                        child: Container(
-                                          margin: const EdgeInsets.only(bottom: 8),
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: isSelected ? ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.08) : Colors.white,
-                                            borderRadius: BorderRadius.circular(16),
-                                            border: Border.all(
-                                              color: isSelected ? ToyVerseTheme.primaryRoyalBlue : Colors.grey.shade300,
-                                              width: isSelected ? 2 : 1,
+                                  _CalmPress(
+                                    onTap: () async {
+                                      final newAddr = await context.push<AddressModel>('/address-picker');
+                                      if (newAddr != null && mounted) {
+                                        setState(() => _selectedAddressIndex = 0);
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: ToyVerseTheme.primaryRoyalBlue,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 38,
+                                            height: 38,
+                                            decoration: BoxDecoration(
+                                              color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.15),
+                                              shape: BoxShape.circle,
                                             ),
+                                            child: const Icon(Icons.location_on_rounded, color: ToyVerseTheme.primaryRoyalBlue, size: 20),
                                           ),
-                                          child: Row(
-                                            children: [
-                                              Container(
-                                                width: 20,
-                                                height: 20,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: isSelected ? ToyVerseTheme.primaryRoyalBlue : Colors.grey.shade400,
-                                                    width: 2,
-                                                  ),
-                                                ),
-                                                child: Center(
-                                                  child: AnimatedContainer(
-                                                    duration: const Duration(milliseconds: 180),
-                                                    curve: Curves.easeOutExpo,
-                                                    width: isSelected ? 10 : 0,
-                                                    height: isSelected ? 10 : 0,
-                                                    decoration: const BoxDecoration(
-                                                      shape: BoxShape.circle,
-                                                      color: ToyVerseTheme.primaryRoyalBlue,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
                                                   children: [
-                                                    Row(
-                                                      children: [
-                                                        Text(addr.label, style: AppTypography.bodyLarge.copyWith(fontSize: 13, fontWeight: FontWeight.w700)),
-                                                        if (addr.isDefault) ...[
-                                                          const SizedBox(width: 6),
-                                                          const SparkleBadge(label: 'DEFAULT', backgroundColor: ToyVerseTheme.primaryNavy, fontSize: 8),
-                                                        ],
-                                                      ],
-                                                    ),
-                                                    Text(
-                                                      addr.fullAddress,
-                                                      maxLines: 2,
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: AppTypography.bodyMedium.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
-                                                    ),
+                                                    Text(selectedAddress.label, style: AppTypography.bodyLarge.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
+                                                    const SizedBox(width: 6),
+                                                    const SparkleBadge(label: 'DELIVERY PIN', backgroundColor: ToyVerseTheme.primaryNavy, fontSize: 8),
                                                   ],
                                                 ),
-                                              ),
-                                            ],
+                                                const SizedBox(height: 3),
+                                                Text(
+                                                  selectedAddress.fullAddress,
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: AppTypography.bodyMedium.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: ToyVerseTheme.textDark),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    }),
+                                          const SizedBox(width: 8),
+                                          const Icon(Icons.edit_location_alt_rounded, size: 18, color: ToyVerseTheme.primaryRoyalBlue),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 if (selectedAddress != null) ...[
                                   const SizedBox(height: 12),
@@ -492,49 +476,45 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                               ],
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          GlassCard(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          const SizedBox(height: 14),
+                          // Shop Origin & Delivery Timeline Notice
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.2)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
                               children: [
-                                Text('Gift Wrap', style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
-                                const SizedBox(height: 8),
-                                _CalmPress(
-                                  onTap: () => setState(() => _isGiftWrapped = !_isGiftWrapped),
-                                  child: Row(
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.storefront_rounded, color: ToyVerseTheme.primaryRoyalBlue, size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Icon(Icons.card_giftcard_rounded, color: ToyVerseTheme.primaryOrange),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          'Add gift wrapping (+₹49)',
-                                          style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w700),
-                                        ),
+                                      Text(
+                                        'Guild Club Fulfillment Hub, Hyderabad',
+                                        style: AppTypography.bodyLarge.copyWith(fontSize: 13, fontWeight: FontWeight.w800, color: ToyVerseTheme.primaryNavy),
                                       ),
-                                      AnimatedContainer(
-                                        duration: const Duration(milliseconds: 180),
-                                        curve: Curves.easeOutExpo,
-                                        width: 52,
-                                        height: 30,
-                                        padding: const EdgeInsets.all(3),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(999),
-                                          color: _isGiftWrapped ? ToyVerseTheme.primaryOrange : Colors.grey.shade300,
-                                        ),
-                                        child: AnimatedAlign(
-                                          duration: const Duration(milliseconds: 180),
-                                          curve: Curves.easeOutExpo,
-                                          alignment: _isGiftWrapped ? Alignment.centerRight : Alignment.centerLeft,
-                                          child: Container(
-                                            width: 20,
-                                            height: 20,
-                                            decoration: const BoxDecoration(
-                                              color: Colors.white,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                        ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'Hyderabad Local: 2–3 Days • Out of Hyderabad: 7–8 Working Days',
+                                        style: AppTypography.bodyMedium.copyWith(fontSize: 11, color: ToyVerseTheme.textDark, fontWeight: FontWeight.w600),
                                       ),
                                     ],
                                   ),
@@ -597,7 +577,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Personal Gift Note', style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
+                                Text('Personal Gift Note (Optional)', style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 6),
                                 TextField(
                                   controller: _giftNoteController,
@@ -639,8 +619,46 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                             child: Column(
                               children: [
                                 _buildSummaryRow('Subtotal', totals.discountedSubtotal),
-                                _buildSummaryRow('Gift Wrap', totals.giftWrapFee),
-                                _buildSummaryRow('GST (12%)', totals.gst),
+                                if (_appliedDiscount > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('Promo Discount', style: AppTypography.bodyMedium.copyWith(fontSize: 14, color: ToyVerseTheme.primaryMintGreen, fontWeight: FontWeight.w600)),
+                                        Text(
+                                          '-₹${_appliedDiscount.toStringAsFixed(0)}',
+                                          style: AppTypography.priceNumeral.copyWith(fontSize: 15, color: ToyVerseTheme.primaryMintGreen, fontWeight: FontWeight.w700),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text('Delivery Fee', style: AppTypography.bodyMedium.copyWith(fontSize: 14, color: ToyVerseTheme.textMuted)),
+                                          if (totals.deliveryFee == 0) ...[
+                                            const SizedBox(width: 6),
+                                            const SparkleBadge(label: 'FREE > ₹499', backgroundColor: ToyVerseTheme.primaryMintGreen, fontSize: 8),
+                                          ],
+                                        ],
+                                      ),
+                                      Text(
+                                        totals.deliveryFee == 0 ? 'FREE' : '₹${totals.deliveryFee.toStringAsFixed(0)}',
+                                        style: AppTypography.priceNumeral.copyWith(
+                                          fontSize: 15,
+                                          color: totals.deliveryFee == 0 ? ToyVerseTheme.primaryMintGreen : ToyVerseTheme.textDark,
+                                          fontWeight: totals.deliveryFee == 0 ? FontWeight.w800 : FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                _buildSummaryRow('GST (5%)', totals.gst),
                                 const Divider(height: 20),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

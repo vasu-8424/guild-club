@@ -4,6 +4,7 @@ import '../models/order_model.dart';
 import '../models/user_model.dart';
 import '../models/admin_stats_model.dart';
 import '../models/listing_model.dart';
+import '../models/address_model.dart';
 
 class MockToyData {
   // Master Categories (Top-level + Subcategories with Heraldic Crest Palette Rotation)
@@ -129,8 +130,8 @@ class MockToyData {
       ],
       rating: 4.9,
       reviewCount: 148,
-      address: '14th Main Road, Indiranagar',
-      city: 'Bengaluru',
+      address: 'Road No. 12, Banjara Hills',
+      city: 'Hyderabad',
       distanceKm: 1.8,
       priceRange: '₹8,000 - ₹15,000 / month',
       isVerified: true,
@@ -152,8 +153,8 @@ class MockToyData {
       ],
       rating: 4.8,
       reviewCount: 92,
-      address: '5th Block, Koramangala',
-      city: 'Bengaluru',
+      address: 'Road No. 36, Jubilee Hills',
+      city: 'Hyderabad',
       distanceKm: 3.2,
       priceRange: '₹10,000 - ₹18,000 / month',
       isVerified: true,
@@ -177,12 +178,12 @@ class MockToyData {
       ],
       rating: 4.9,
       reviewCount: 310,
-      address: 'Sarjapur Main Road',
-      city: 'Bengaluru',
+      address: 'HITEC City Main Road, Madhapur',
+      city: 'Hyderabad',
       distanceKm: 5.4,
       priceRange: '₹1.5L - ₹2.8L / year',
       isVerified: true,
-      phone: '+91 80 4123 7890',
+      phone: '+91 40 4123 7890',
       whatsapp: '+91 98450 67890',
       operatingHours: '8:00 AM - 3:30 PM (Mon-Fri)',
       ageGroup: 'Grade 1 - Grade 12',
@@ -202,8 +203,8 @@ class MockToyData {
       ],
       rating: 4.9,
       reviewCount: 78,
-      address: '100ft Road, Defence Colony',
-      city: 'Bengaluru',
+      address: 'Financial District, Gachibowli',
+      city: 'Hyderabad',
       distanceKm: 2.1,
       priceRange: 'Custom Quote / Consultation',
       isVerified: true,
@@ -227,8 +228,8 @@ class MockToyData {
       ],
       rating: 5.0,
       reviewCount: 116,
-      address: 'HSR Layout Sector 2',
-      city: 'Bengaluru',
+      address: 'Film Nagar Main Road',
+      city: 'Hyderabad',
       distanceKm: 2.9,
       priceRange: '₹1,200 - ₹2,000 / session',
       isVerified: true,
@@ -251,8 +252,8 @@ class MockToyData {
       ],
       rating: 4.9,
       reviewCount: 94,
-      address: 'Jayanagar 4th Block',
-      city: 'Bengaluru',
+      address: 'Prakash Nagar, Begumpet',
+      city: 'Hyderabad',
       distanceKm: 4.1,
       priceRange: '₹1,500 - ₹2,200 / session',
       isVerified: true,
@@ -275,8 +276,8 @@ class MockToyData {
       ],
       rating: 4.8,
       reviewCount: 83,
-      address: 'Kalyan Nagar',
-      city: 'Bengaluru',
+      address: 'Silpa Gram Craft Village Road, Kondapur',
+      city: 'Hyderabad',
       distanceKm: 6.0,
       priceRange: '₹1,800 - ₹2,500 / session',
       isVerified: true,
@@ -299,8 +300,8 @@ class MockToyData {
       ],
       rating: 4.9,
       reviewCount: 105,
-      address: 'BTM Layout 2nd Stage',
-      city: 'Bengaluru',
+      address: 'KPHB Colony, Kukatpally',
+      city: 'Hyderabad',
       distanceKm: 3.7,
       priceRange: '₹1,000 - ₹1,800 / session',
       isVerified: true,
@@ -476,6 +477,9 @@ class MockToyData {
     children: [],
   );
 
+  static const List<AddressModel> addresses = [];
+  static final List<OrderModel> orders = [];
+  static final Set<String> wishlistProductIds = <String>{};
   static final List<OrderModel> sampleOrders = [];
 
   static const AdminStatsModel adminStats = AdminStatsModel(

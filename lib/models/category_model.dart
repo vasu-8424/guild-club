@@ -83,36 +83,85 @@ class CategoryModel {
 
   /// 3D isometric illustration assets for categories
   static String? resolveIllustrationAsset(String key) {
-    final cleanKey = key.toLowerCase().replaceAll('-', '_').trim();
+    final cleanKey = key.toLowerCase().replaceAll('-', '_').replaceAll(' ', '_').trim();
     switch (cleanKey) {
       case 'play_schools':
       case 'play_school':
+      case 'toys_rounded':
+      case 'toys':
+      case 'c1000000_0000_0000_0000_000000000001':
         return 'assets/images/categories/play_schools.png';
       case 'child_development':
       case 'child_development_centers':
       case 'child_development_center':
+      case 'psychology_rounded':
+      case 'psychology':
+      case 'c1000000_0000_0000_0000_000000000002':
         return 'assets/images/categories/child_development.png';
       case 'schools':
       case 'school':
+      case 'school_rounded':
+      case 'c1000000_0000_0000_0000_000000000003':
         return 'assets/images/categories/schools.png';
       case 'interior_designing':
       case 'interior_design':
+      case 'architecture_rounded':
+      case 'architecture':
+      case 'c1000000_0000_0000_0000_000000000004':
         return 'assets/images/categories/interior_designing.png';
       case 'speech_therapy':
+      case 'speech':
+      case 'record_voice_over_rounded':
+      case 'record_voice_over':
+      case 'c2000000_0000_0000_0000_000000000001':
         return 'assets/images/categories/speech_therapy.png';
       case 'occupational_therapy':
+      case 'occupational':
+      case 'accessibility_new_rounded':
+      case 'accessibility_new':
+      case 'accessibility':
+      case 'c2000000_0000_0000_0000_000000000002':
         return 'assets/images/categories/occupational_therapy.png';
       case 'behavioural_therapy':
+      case 'behavioural':
       case 'behavioral_therapy':
+      case 'behavioral':
+      case 'psychology_alt_rounded':
+      case 'psychology_alt':
+      case 'self_improvement_rounded':
+      case 'self_improvement':
+      case 'c2000000_0000_0000_0000_000000000003':
         return 'assets/images/categories/behavioural_therapy.png';
       case 'special_education':
+      case 'special':
+      case 'auto_stories_rounded':
+      case 'auto_stories':
+      case 'c2000000_0000_0000_0000_000000000004':
         return 'assets/images/categories/special_education.png';
       default:
         return null;
     }
   }
 
-  String? get illustrationAsset => resolveIllustrationAsset(iconKey.isNotEmpty ? iconKey : slug);
+  String? get illustrationAsset {
+    if (slug.isNotEmpty) {
+      final res = resolveIllustrationAsset(slug);
+      if (res != null) return res;
+    }
+    if (iconKey.isNotEmpty) {
+      final res = resolveIllustrationAsset(iconKey);
+      if (res != null) return res;
+    }
+    if (name.isNotEmpty) {
+      final res = resolveIllustrationAsset(name);
+      if (res != null) return res;
+    }
+    if (id.isNotEmpty) {
+      final res = resolveIllustrationAsset(id);
+      if (res != null) return res;
+    }
+    return null;
+  }
 
   IconData get icon => resolveIcon(iconKey.isNotEmpty ? iconKey : slug);
 

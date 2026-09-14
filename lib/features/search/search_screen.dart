@@ -69,7 +69,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      onPressed: () => context.pop(),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/');
+                        }
+                      },
                       icon: const CircleAvatar(
                         backgroundColor: Colors.white,
                         child: Icon(Icons.arrow_back_rounded, color: ToyVerseTheme.textDark),

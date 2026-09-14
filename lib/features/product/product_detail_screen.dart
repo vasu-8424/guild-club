@@ -174,7 +174,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                             // Back Button (Flat circular button with magnetic press)
                             _CircularIconButton(
                               icon: Icons.arrow_back_rounded,
-                              onPressed: () => context.pop(),
+                              onPressed: () {
+                                if (context.canPop()) {
+                                  context.pop();
+                                } else {
+                                  context.go('/');
+                                }
+                              },
                             ),
 
                             // Cart / Bag Button (Flat circular button with item badge)
@@ -357,6 +363,124 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                             ),
 
                             const SizedBox(height: 20),
+
+                            // Hyderabad Fulfillment & Delivery Timeline Card
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.local_shipping_rounded,
+                                          size: 18,
+                                          color: ToyVerseTheme.primaryRoyalBlue,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        'Delivery & Dispatch Policy',
+                                        style: AppTypography.bodyLarge.copyWith(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.location_on_outlined, size: 16, color: ToyVerseTheme.primaryRoyalBlue),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: const Color(0xFF334155)),
+                                            children: const [
+                                              TextSpan(text: 'Dispatched from: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                                              TextSpan(text: 'Guild Club Store, Hyderabad'),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.flash_on_rounded, size: 16, color: ToyVerseTheme.primaryOrange),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: const Color(0xFF334155)),
+                                            children: const [
+                                              TextSpan(text: 'Hyderabad Local: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                                              TextSpan(text: '2 to 3 days delivery'),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.public_rounded, size: 16, color: ToyVerseTheme.primaryNavy),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: const Color(0xFF334155)),
+                                            children: const [
+                                              TextSpan(text: 'Out of Hyderabad: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                                              TextSpan(text: '7 to 8 working days delivery'),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.card_giftcard_rounded, size: 16, color: ToyVerseTheme.primaryMintGreen),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: const Color(0xFF334155)),
+                                            children: const [
+                                              TextSpan(text: 'Free Delivery: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                                              TextSpan(text: 'On all orders above ₹499 (GST 5% included at checkout)'),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 24),
                           ],
                         ),
                       ),

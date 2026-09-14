@@ -23,12 +23,12 @@ class AddressPickerScreen extends ConsumerStatefulWidget {
 }
 
 class _AddressPickerScreenState extends ConsumerState<AddressPickerScreen> with TickerProviderStateMixin {
-  double _currentLat = 12.9716;
-  double _currentLng = 77.5946;
+  double _currentLat = 17.3850;
+  double _currentLng = 78.4867;
 
   String _resolvedAddress = 'Detecting your GPS location...';
-  String _city = '';
-  String _state = '';
+  String _city = 'Hyderabad';
+  String _state = 'Telangana';
   String _postalCode = '';
   bool _isLocating = false;
 
@@ -240,7 +240,7 @@ class _AddressPickerScreenState extends ConsumerState<AddressPickerScreen> with 
                                 TextField(
                                   controller: _houseController,
                                   decoration: InputDecoration(
-                                    hintText: 'Flat 402, Sunshine Heights, Floor 4',
+                                    hintText: 'e.g. Flat / House No., Apartment or Building Name',
                                     prefixIcon: const Icon(Icons.home_work_rounded, color: ToyVerseTheme.primaryRoyalBlue, size: 20),
                                     filled: true,
                                     fillColor: Colors.white,
@@ -261,7 +261,7 @@ class _AddressPickerScreenState extends ConsumerState<AddressPickerScreen> with 
                                 TextField(
                                   controller: _landmarkController,
                                   decoration: InputDecoration(
-                                    hintText: 'Opposite City Park / Near Metro Station',
+                                    hintText: 'e.g. Nearby Landmark, Street or Area reference (Optional)',
                                     prefixIcon: const Icon(Icons.alt_route_rounded, color: ToyVerseTheme.primaryRoyalBlue, size: 20),
                                     filled: true,
                                     fillColor: Colors.white,
@@ -669,17 +669,32 @@ class _AddressPickerScreenState extends ConsumerState<AddressPickerScreen> with 
   void _saveAddressAndPop() async {
     final user = ref.read(userProvider);
     final houseDetail = _houseController.text.trim();
-    final fullAddrStr = houseDetail.isNotEmpty ? '$houseDetail, $_resolvedAddress' : _resolvedAddress;
+    final landmarkDetail = _landmarkController.text.trim();
+
+    final addressSegments = <String>[];
+    if (houseDetail.isNotEmpty) {
+      addressSegments.add(houseDetail);
+    }
+    if (_resolvedAddress.isNotEmpty && !_resolvedAddress.toLowerCase().contains('detecting')) {
+      addressSegments.add(_resolvedAddress);
+    }
+    if (landmarkDetail.isNotEmpty) {
+      addressSegments.add('Landmark: $landmarkDetail');
+    }
+
+    final fullAddrStr = addressSegments.isNotEmpty
+        ? addressSegments.join(', ')
+        : (_resolvedAddress.isNotEmpty ? _resolvedAddress : 'Hyderabad, Telangana');
 
     final newAddr = AddressModel(
       id: const Uuid().v4(),
-      userId: user.id,
+      userId: user.id.isNotEmpty ? user.id : 'user_guildclub_1',
       label: _selectedLabel,
       fullAddress: fullAddrStr,
       latitude: _currentLat,
       longitude: _currentLng,
-      city: _city,
-      state: _state,
+      city: _city.isNotEmpty ? _city : 'Hyderabad',
+      state: _state.isNotEmpty ? _state : 'Telangana',
       postalCode: _postalCode,
       isDefault: _isDefault,
       createdAt: DateTime.now(),

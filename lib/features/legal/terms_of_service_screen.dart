@@ -341,7 +341,7 @@ class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
                         content: [
                           _buildBullet(
                             'Jurisdiction:',
-                            'These Terms shall be governed by and construed in accordance with the laws of India. Courts in Bengaluru, Karnataka shall have exclusive jurisdiction.',
+                            'These Terms shall be governed by and construed in accordance with the laws of India. Courts in Hyderabad, Telangana shall have exclusive jurisdiction.',
                           ),
                           _buildBullet(
                             'Customer Grievances:',

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_typography.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../core/theme/toyverse_theme.dart';
 import '../../core/widgets/floating_clouds.dart';
@@ -16,7 +15,6 @@ class WishlistScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncUserData = ref.watch(userDataProvider);
     final wishlist = ref.watch(wishlistProvider);
     final allProducts = ref.watch(productsProvider);
     final favProducts = allProducts.where((p) => wishlist.contains(p.id)).toList();
@@ -33,14 +31,14 @@ class WishlistScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      onPressed: () => context.pop(),
+                      onPressed: () => context.canPop() ? context.pop() : context.go('/'),
                       icon: const CircleAvatar(
                         backgroundColor: Colors.white,
                         child: Icon(Icons.arrow_back_rounded, color: ToyVerseTheme.textDark),
                       ),
                     ),
                     Text(
-                      'Wishlist ❤️ (${favProducts.length})',
+                      'Liked Items ❤️ (${favProducts.length})',
                       style: AppTypography.displayMedium.copyWith(fontSize: 22, fontWeight: FontWeight.bold),
                     ),
                     IconButton(
@@ -59,11 +57,7 @@ class WishlistScreen extends ConsumerWidget {
               ),
 
               Expanded(
-                child: asyncUserData.when(
-                  loading: () => _buildShimmerGrid(),
-                  error: (e, s) => _buildWishlistContent(context, ref, favProducts),
-                  data: (data) => _buildWishlistContent(context, ref, favProducts),
-                ),
+                child: _buildWishlistContent(context, ref, favProducts),
               ),
             ],
           ),
@@ -75,8 +69,7 @@ class WishlistScreen extends ConsumerWidget {
   Widget _buildWishlistContent(BuildContext context, WidgetRef ref, List<ProductModel> favProducts) {
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(userDataProvider);
-        await ref.read(userDataProvider.future);
+        await ref.read(wishlistProvider.notifier).refreshWishlist();
       },
       child: favProducts.isEmpty
           ? ListView(
@@ -117,31 +110,6 @@ class WishlistScreen extends ConsumerWidget {
                 return ProductCard(product: favProducts[index], width: double.infinity);
               },
             ),
-    );
-  }
-
-  Widget _buildShimmerGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.54,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: 4,
-      itemBuilder: (context, index) {
-        return Shimmer.fromColors(
-          baseColor: Colors.grey.shade300,
-          highlightColor: Colors.grey.shade100,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        );
-      },
     );
   }
 }

@@ -9,7 +9,6 @@ import '../../core/widgets/glass_card.dart';
 import '../../core/widgets/gradient_mesh_background.dart';
 import '../../core/widgets/spring_widgets.dart';
 import '../../providers/app_providers.dart';
-import '../../repositories/mock_toy_data.dart';
 import '../categories/widgets/category_tile_widget.dart';
 import '../product/product_card.dart';
 import 'widgets/hero_video_carousel.dart';
@@ -329,9 +328,9 @@ class _HomeFeedViewState extends ConsumerState<HomeFeedView> {
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: MockToyData.products.length,
+                itemCount: products.length,
                 itemBuilder: (context, index) {
-                  return ProductCard(product: MockToyData.products[index])
+                  return ProductCard(product: products[index])
                       .animate()
                       .fadeIn(duration: 350.ms, delay: (150 + index * 30).ms)
                       .slideX(begin: 0.08, end: 0);

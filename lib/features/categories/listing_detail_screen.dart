@@ -64,7 +64,13 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                   text: 'Go Back',
                   width: 140,
                   height: 40,
-                  onPressed: () => context.pop(),
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/categories');
+                    }
+                  },
                 ),
               ],
             ),
@@ -108,7 +114,13 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                       child: Row(
                         children: [
                           SpringPressable(
-                            onTap: () => context.pop(),
+                            onTap: () {
+                              if (context.canPop()) {
+                                context.pop();
+                              } else {
+                                context.go('/categories');
+                              }
+                            },
                             child: Container(
                               width: 38,
                               height: 38,

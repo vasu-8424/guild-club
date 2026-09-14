@@ -427,13 +427,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Saved Delivery Addresses Section
+                  // Saved Delivery Address Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
-                          'Saved Delivery Addresses 📍',
+                          'Saved Delivery Address 📍',
                           style: AppTypography.displayMedium.copyWith(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -442,7 +442,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           child: Text(
-                            '+ Add Address',
+                            addresses.isEmpty ? '+ Add Address' : 'Change / + Add',
                             style: AppTypography.bodyLarge.copyWith(
                               fontWeight: FontWeight.bold,
                               color: ToyVerseTheme.primaryRoyalBlue,
@@ -463,7 +463,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'No saved delivery addresses. Tap + Add Address to add your first delivery pin.',
+                              'No saved delivery address. Tap + Add Address to set your location.',
                               style: AppTypography.bodyMedium.copyWith(fontSize: 13, color: ToyVerseTheme.textMuted),
                             ),
                           ),
@@ -471,53 +471,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     )
                   else
-                    Column(
-                      children: addresses.map((addr) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          child: SpringPressable(
-                            onTap: () => context.push('/address-picker'),
-                            child: GlassCard(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
+                    SpringPressable(
+                      onTap: () => context.push('/address-picker'),
+                      child: GlassCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.location_on_rounded, color: ToyVerseTheme.primaryRoyalBlue, size: 24),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.location_on_rounded, color: ToyVerseTheme.primaryRoyalBlue, size: 24),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              addr.label,
-                                              style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.bold, fontSize: 15),
-                                            ),
-                                            if (addr.isDefault) ...[
-                                              const SizedBox(width: 6),
-                                              const SparkleBadge(
-                                                label: 'DEFAULT',
-                                                backgroundColor: ToyVerseTheme.primaryNavy,
-                                                fontSize: 8,
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                        Text(
-                                          addr.fullAddress,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: ToyVerseTheme.textMuted),
-                                        ),
-                                      ],
-                                    ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        addresses.first.label,
+                                        style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.bold, fontSize: 15),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const SparkleBadge(
+                                        label: 'DEFAULT',
+                                        backgroundColor: ToyVerseTheme.primaryNavy,
+                                        fontSize: 8,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    addresses.first.fullAddress,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: ToyVerseTheme.textMuted),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
+                            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: ToyVerseTheme.textMuted),
+                          ],
+                        ),
+                      ),
                     ),
 
                   const SizedBox(height: 24),

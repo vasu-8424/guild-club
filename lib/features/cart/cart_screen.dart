@@ -83,9 +83,10 @@ class _CartScreenState extends ConsumerState<CartScreen> with TickerProviderStat
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
     final subtotal = ref.watch(cartTotalAmountProvider);
-    final shippingFee = subtotal > 1500 || subtotal == 0 ? 0.0 : 99.0;
-    final giftWrapFee = _isGiftWrapped ? 49.0 : 0.0;
-    final finalTotal = (subtotal + shippingFee + giftWrapFee - _appliedDiscount).clamp(0.0, 999999.0);
+    final rawDiscounted = (subtotal - _appliedDiscount).clamp(0.0, 999999.0);
+    final shippingFee = (rawDiscounted >= 499.0 || subtotal == 0) ? 0.0 : 49.0;
+    final gst = rawDiscounted * 0.05; // 5% GST on all orders
+    final finalTotal = (rawDiscounted + shippingFee + gst).clamp(0.0, 999999.0);
 
     return Scaffold(
       body: Stack(
@@ -100,7 +101,13 @@ class _CartScreenState extends ConsumerState<CartScreen> with TickerProviderStat
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         SpringPressable(
-                          onTap: () => context.pop(),
+                          onTap: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go('/');
+                            }
+                          },
                           child: const CircleAvatar(
                             backgroundColor: Colors.white,
                             child: Icon(Icons.arrow_back_rounded, color: ToyVerseTheme.textDark),
@@ -300,7 +307,7 @@ class _CartScreenState extends ConsumerState<CartScreen> with TickerProviderStat
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'Add Gift Wrapping (+₹49)',
+                                              'Add Complimentary Gift Wrapping (Free)',
                                               style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w700),
                                             ),
                                             Text(
@@ -392,10 +399,75 @@ class _CartScreenState extends ConsumerState<CartScreen> with TickerProviderStat
                                     children: [
                                       Text('Order Summary', style: AppTypography.displayMedium.copyWith(fontSize: 18, fontWeight: FontWeight.w800)),
                                       const SizedBox(height: 12),
+                                      if (subtotal > 0 && subtotal < 499)
+                                        Container(
+                                          margin: const EdgeInsets.only(bottom: 12),
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEF3C7),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: const Color(0xFFFDE68A)),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.local_shipping_outlined, size: 16, color: Color(0xFFD97706)),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  'Add ₹${(499 - subtotal).toInt()} more for FREE Delivery! 🚚',
+                                                  style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w700, color: const Color(0xFF92400E)),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      else if (subtotal >= 499)
+                                        Container(
+                                          margin: const EdgeInsets.only(bottom: 12),
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFDCFCE7),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF16A34A)),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  '🎉 You unlocked FREE Delivery on this order!',
+                                                  style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w700, color: const Color(0xFF15803D)),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       _buildSummaryRow('Subtotal', '₹${subtotal.toInt()}'),
-                                      _buildSummaryRow('Delivery Fee', shippingFee == 0 ? 'FREE' : '₹${shippingFee.toInt()}'),
-                                      if (_isGiftWrapped) _buildSummaryRow('Gift Packaging', '₹49'),
                                       if (_appliedDiscount > 0) _buildSummaryRow('Promo Discount', '-₹${_appliedDiscount.toInt()}', isGreen: true),
+                                      _buildSummaryRow('GST (5%)', '₹${gst.toStringAsFixed(1)}'),
+                                      _buildSummaryRow('Delivery Fee', shippingFee == 0 ? 'FREE' : '₹${shippingFee.toInt()}', isGreen: shippingFee == 0),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.location_city_rounded, size: 16, color: ToyVerseTheme.primaryRoyalBlue),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'Dispatched from Hyderabad Store • Local: 2–3 Days | Other Cities: 7–8 Days',
+                                                style: AppTypography.bodySmall.copyWith(fontSize: 11, color: ToyVerseTheme.textDark, fontWeight: FontWeight.w500),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                       const Divider(height: 24),
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,

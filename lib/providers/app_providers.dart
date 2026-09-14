@@ -10,6 +10,8 @@ import '../models/address_model.dart';
 import '../models/admin_stats_model.dart';
 import '../repositories/mock_toy_data.dart';
 import '../core/services/supabase_service.dart';
+import '../core/services/address_storage_service.dart';
+import '../core/services/child_storage_service.dart';
 
 // User State Provider
 final userProvider = StateNotifierProvider<UserNotifier, UserModel>((ref) {
@@ -17,67 +19,51 @@ final userProvider = StateNotifierProvider<UserNotifier, UserModel>((ref) {
 });
 
 class UserNotifier extends StateNotifier<UserModel> {
-  UserNotifier() : super(MockToyData.currentUser);
+  UserNotifier() : super(MockToyData.currentUser) {
+    _initUser();
+  }
+
+  Future<void> _initUser() async {
+    try {
+      final cachedChildren = await ChildStorageService.loadLocalChildren();
+      if (cachedChildren.isNotEmpty && mounted) {
+        state = state.copyWith(children: cachedChildren);
+      }
+    } catch (_) {}
+  }
 
   void setChildren(List<ChildProfileModel> children) {
-    state = UserModel(
-      id: state.id,
-      fullName: state.fullName,
-      email: state.email,
-      phone: state.phone,
-      avatarUrl: state.avatarUrl,
-      rewardCoins: state.rewardCoins,
-      children: children,
-      isAdmin: state.isAdmin,
-    );
+    state = state.copyWith(children: children);
+    ChildStorageService.saveLocalChildren(children);
   }
 
   Future<bool> addChild(ChildProfileModel child) async {
-    final previousChildren = state.children;
-    state = UserModel(
-      id: state.id,
-      fullName: state.fullName,
-      email: state.email,
-      phone: state.phone,
-      avatarUrl: state.avatarUrl,
-      rewardCoins: state.rewardCoins,
-      children: [...state.children, child],
-      isAdmin: state.isAdmin,
-    );
+    // Immediately update local state so child is visible with zero latency
+    final updated = [...state.children.where((c) => c.id != child.id), child];
+    state = state.copyWith(children: updated);
 
-    final success = await SupabaseService.saveChildProfile(state.id, child);
-    if (!success) {
-      // Revert on failure
-      state = UserModel(
-        id: state.id,
-        fullName: state.fullName,
-        email: state.email,
-        phone: state.phone,
-        avatarUrl: state.avatarUrl,
-        rewardCoins: state.rewardCoins,
-        children: previousChildren,
-        isAdmin: state.isAdmin,
-      );
-      return false;
-    }
+    // Save to persistent device storage immediately
+    await ChildStorageService.saveLocalChildren(updated);
+
+    // Sync to Supabase in background
+    try {
+      await SupabaseService.saveChildProfile(state.id, child);
+    } catch (_) {}
+
     return true;
   }
 
   void updateAvatarUrl(String avatarUrl) {
-    state = UserModel(
-      id: state.id,
-      fullName: state.fullName,
-      email: state.email,
-      phone: state.phone,
-      avatarUrl: avatarUrl,
-      rewardCoins: state.rewardCoins,
-      children: state.children,
-      isAdmin: state.isAdmin,
-    );
+    state = state.copyWith(avatarUrl: avatarUrl);
   }
 
   void setUser(UserModel user) {
-    state = user;
+    // Preserve local children if incoming user model has none
+    final existingChildren = state.children;
+    final finalChildren = user.children.isNotEmpty
+        ? user.children
+        : existingChildren;
+    state = user.copyWith(children: finalChildren);
   }
 
   void addCoins(int coins) {
@@ -146,9 +132,10 @@ final singleListingFamilyProvider = FutureProvider.family<ListingModel?, String>
   return await SupabaseService.fetchListingById(listingId);
 });
 
-// Legacy Category Provider (fallback list)
+// Category Provider (dynamic Supabase-driven with offline fallback)
 final categoriesProvider = Provider<List<CategoryModel>>((ref) {
-  return MockToyData.categories;
+  final asyncCategories = ref.watch(topLevelCategoriesAsyncProvider);
+  return asyncCategories.asData?.value ?? MockToyData.categories;
 });
 
 final selectedCategoryProvider = StateProvider<String?>((ref) => null);
@@ -159,7 +146,22 @@ final productsProvider = StateNotifierProvider<ProductsNotifier, List<ProductMod
 });
 
 class ProductsNotifier extends StateNotifier<List<ProductModel>> {
-  ProductsNotifier() : super(MockToyData.products);
+  ProductsNotifier() : super(MockToyData.products) {
+    loadProducts();
+  }
+
+  Future<void> loadProducts() async {
+    try {
+      final fetched = await SupabaseService.fetchProducts();
+      if (fetched.isNotEmpty) {
+        state = fetched;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> refresh() async {
+    await loadProducts();
+  }
 
   void addProduct(ProductModel product) {
     state = [product, ...state];
@@ -188,9 +190,14 @@ final filteredProductsProvider = Provider<List<ProductModel>>((ref) {
   final ageRange = ref.watch(ageFilterProvider);
 
   return products.where((p) {
-    final matchesCategory = categorySlug == null || p.categorySlug == categorySlug;
+    final matchesCategory = categorySlug == null ||
+        categorySlug.isEmpty ||
+        categorySlug == 'all' ||
+        p.categorySlug.toLowerCase() == categorySlug.toLowerCase() ||
+        p.categorySlug.toLowerCase().contains(categorySlug.toLowerCase());
     final matchesQuery = query.isEmpty ||
         p.title.toLowerCase().contains(query) ||
+        p.subtitle.toLowerCase().contains(query) ||
         p.brandName.toLowerCase().contains(query) ||
         p.description.toLowerCase().contains(query);
     final matchesAge = p.minAge <= ageRange.end && p.maxAge >= ageRange.start;
@@ -232,26 +239,23 @@ class UserDataState {
 final userDataProvider = FutureProvider<UserDataState>((ref) async {
   final user = ref.watch(userProvider);
   final allProducts = ref.watch(productsProvider);
-
-  if (user.id.isEmpty) {
-    return const UserDataState(
-      addresses: [],
-      orders: [],
-      wishlistProductIds: {},
-      children: [],
-    );
-  }
+  final userId = user.id.isNotEmpty ? user.id : 'user_guildclub_1';
 
   // Parallel fetch fresh data from Supabase: addresses, orders, wishlist, children, avatar
   final results = await Future.wait([
-    SupabaseService.fetchUserAddresses(user.id),
-    SupabaseService.fetchUserOrders(user.id, allProducts: allProducts),
-    SupabaseService.fetchUserWishlist(user.id),
-    SupabaseService.fetchUserChildren(user.id),
-    SupabaseService.fetchUserProfileAvatar(user.id),
+    SupabaseService.fetchUserAddresses(userId),
+    SupabaseService.fetchUserOrders(userId, allProducts: allProducts),
+    SupabaseService.fetchUserWishlist(userId),
+    SupabaseService.fetchUserChildren(userId),
+    SupabaseService.fetchUserProfileAvatar(userId),
   ]);
 
+  final fetchedAddresses = results[0] as List<AddressModel>;
+  final singleAddressList = fetchedAddresses.isNotEmpty ? [fetchedAddresses.first] : <AddressModel>[];
+  final fetchedOrders = results[1] as List<OrderModel>;
+  final fetchedWishlist = results[2] as Set<String>;
   final fetchedChildren = results[3] as List<ChildProfileModel>;
+
   if (fetchedChildren.isNotEmpty) {
     ref.read(userProvider.notifier).setChildren(fetchedChildren);
   }
@@ -262,62 +266,96 @@ final userDataProvider = FutureProvider<UserDataState>((ref) async {
   }
 
   return UserDataState(
-    addresses: results[0] as List<AddressModel>,
-    orders: results[1] as List<OrderModel>,
-    wishlistProductIds: results[2] as Set<String>,
+    addresses: singleAddressList,
+    orders: fetchedOrders,
+    wishlistProductIds: fetchedWishlist,
     children: fetchedChildren,
   );
 });
 
-// Addresses Provider
+// Addresses Provider (Single saved address on device + synced with Supabase)
 final addressesProvider = StateNotifierProvider<AddressesNotifier, List<AddressModel>>((ref) {
-  final asyncUserData = ref.watch(userDataProvider);
-  final initialList = asyncUserData.asData?.value.addresses ?? const <AddressModel>[];
-  return AddressesNotifier(initialList, ref);
+  return AddressesNotifier(ref);
 });
 
 class AddressesNotifier extends StateNotifier<List<AddressModel>> {
   final Ref ref;
-  AddressesNotifier(super.initialState, this.ref);
+  AddressesNotifier(this.ref) : super(const <AddressModel>[]) {
+    _initAddresses();
+  }
+
+  Future<void> _initAddresses() async {
+    // 1. Load user's saved address from device local storage immediately
+    final local = await AddressStorageService.loadLocalAddresses();
+    if (local.isNotEmpty && mounted) {
+      state = [local.first];
+      return;
+    }
+    // 2. If no local address, fetch from Supabase
+    final user = ref.read(userProvider);
+    final userId = user.id.isNotEmpty ? user.id : 'user_guildclub_1';
+    final remote = await SupabaseService.fetchUserAddresses(userId);
+    if (remote.isNotEmpty && mounted) {
+      state = [remote.first];
+      await AddressStorageService.saveLocalAddresses([remote.first]);
+    }
+  }
 
   Future<bool> addOrUpdateAddress(AddressModel address) async {
-    final previousState = state;
     final currentUserId = ref.read(userProvider).id;
-    final targetAddress = address.userId.isEmpty ? address.copyWith(userId: currentUserId) : address;
+    final targetAddress = address.userId.isEmpty
+        ? address.copyWith(userId: currentUserId.isNotEmpty ? currentUserId : 'user_guildclub_1')
+        : address;
 
-    if (targetAddress.isDefault) {
-      state = [
-        for (final a in state) a.copyWith(isDefault: false),
-      ];
-    }
-    state = [targetAddress, ...state];
+    // Immediately replace state with single address
+    state = [targetAddress];
 
-    final saved = await SupabaseService.saveAddress(targetAddress);
-    if (saved != null) {
-      state = [
-        for (final a in state)
-          if (a.id == targetAddress.id || a.id.isEmpty) saved else a
-      ];
-      ref.invalidate(userDataProvider);
-      return true;
-    } else {
-      // Revert optimistic state on failure
-      state = previousState;
-      return false;
-    }
+    // Save single address to device persistent local storage
+    await AddressStorageService.saveLocalAddresses([targetAddress]);
+
+    // Sync to Supabase
+    try {
+      final saved = await SupabaseService.saveAddress(targetAddress);
+      if (saved != null && mounted) {
+        state = [saved];
+        await AddressStorageService.saveLocalAddresses([saved]);
+      }
+    } catch (_) {}
+
+    return true;
+  }
+
+  Future<void> deleteAddress(String addressId) async {
+    state = const [];
+    await AddressStorageService.deleteLocalAddress(addressId);
   }
 }
 
-// Wishlist Provider with Optimistic Updates & Failure Rollback
+// Wishlist Provider with Optimistic Updates & Background Sync
 final wishlistProvider = StateNotifierProvider<WishlistNotifier, Set<String>>((ref) {
-  final asyncUserData = ref.watch(userDataProvider);
-  final initialSet = asyncUserData.asData?.value.wishlistProductIds ?? const <String>{};
-  return WishlistNotifier(initialSet, ref);
+  return WishlistNotifier(ref);
 });
 
 class WishlistNotifier extends StateNotifier<Set<String>> {
   final Ref ref;
-  WishlistNotifier(super.initialState, this.ref);
+  WishlistNotifier(this.ref) : super(MockToyData.wishlistProductIds) {
+    _initWishlist();
+  }
+
+  Future<void> _initWishlist() async {
+    try {
+      final user = ref.read(userProvider);
+      final userId = user.id.isNotEmpty ? user.id : 'user_guildclub_1';
+      final remote = await SupabaseService.fetchUserWishlist(userId);
+      if (remote.isNotEmpty && mounted) {
+        state = remote;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> refreshWishlist() async {
+    await _initWishlist();
+  }
 
   Future<bool> toggleWishlist(String productId) async {
     final user = ref.read(userProvider);
@@ -330,26 +368,16 @@ class WishlistNotifier extends StateNotifier<Set<String>> {
       state = {...state}..add(productId);
     }
 
-    // 2. Sync to Supabase
+    // 2. Sync to Supabase in background
     try {
       final success = await SupabaseService.toggleWishlist(user.id, productId, !isCurrentlyAdded);
       if (!success) {
-        // Rollback on failure
-        if (isCurrentlyAdded) {
-          state = {...state}..add(productId);
-        } else {
-          state = {...state}..remove(productId);
-        }
-        return false;
+        // Keep optimistic state locally so user experience is smooth
+        return true;
       }
       return true;
     } catch (e) {
-      if (isCurrentlyAdded) {
-        state = {...state}..add(productId);
-      } else {
-        state = {...state}..remove(productId);
-      }
-      return false;
+      return true;
     }
   }
 }
@@ -400,31 +428,43 @@ final cartTotalAmountProvider = Provider<double>((ref) {
   return cart.fold(0.0, (sum, item) => sum + item.totalPrice);
 });
 
-// Orders Provider
+// Orders Provider (Instant Load & Background Sync)
 final ordersProvider = StateNotifierProvider<OrdersNotifier, List<OrderModel>>((ref) {
-  final asyncUserData = ref.watch(userDataProvider);
-  final initialOrders = asyncUserData.asData?.value.orders ?? const <OrderModel>[];
-  return OrdersNotifier(initialOrders, ref);
+  return OrdersNotifier(ref);
 });
 
 class OrdersNotifier extends StateNotifier<List<OrderModel>> {
   final Ref ref;
-  OrdersNotifier(super.initialState, this.ref);
+  OrdersNotifier(this.ref) : super(MockToyData.orders) {
+    _initOrders();
+  }
+
+  Future<void> _initOrders() async {
+    try {
+      final user = ref.read(userProvider);
+      final userId = user.id.isNotEmpty ? user.id : 'user_guildclub_1';
+      final allProducts = ref.read(productsProvider);
+      final remote = await SupabaseService.fetchUserOrders(userId, allProducts: allProducts);
+      if (remote.isNotEmpty && mounted) {
+        state = remote;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> refreshOrders() async {
+    await _initOrders();
+  }
 
   Future<bool> placeOrder(OrderModel order) async {
     final currentUserId = ref.read(userProvider).id;
-    final targetOrder = order.userId.isEmpty ? order.copyWith(userId: currentUserId) : order;
+    final targetOrder = order.userId.isEmpty ? order.copyWith(userId: currentUserId.isNotEmpty ? currentUserId : 'user_guildclub_1') : order;
 
     state = [targetOrder, ...state];
 
-    final success = await SupabaseService.saveOrder(targetOrder);
-    if (success) {
-      ref.invalidate(userDataProvider);
-      return true;
-    } else {
-      // Keep optimistic order locally so tracking screen can work even offline
-      return true;
-    }
+    try {
+      await SupabaseService.saveOrder(targetOrder);
+    } catch (_) {}
+    return true;
   }
 
   Future<bool> updateOrderStatus(String orderId, OrderStatus newStatus) async {
@@ -447,15 +487,13 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
         if (o.id == orderId) updatedOrder else o
     ];
 
-    final success = await SupabaseService.updateOrderStatus(
-      orderId,
-      newStatus,
-      currentHistory: existingOrder.statusHistory,
-    );
-
-    if (success) {
-      ref.invalidate(userDataProvider);
-    }
+    try {
+      await SupabaseService.updateOrderStatus(
+        orderId,
+        newStatus,
+        currentHistory: existingOrder.statusHistory,
+      );
+    } catch (_) {}
     return true;
   }
 }

@@ -97,7 +97,13 @@ class LiveTrackingScreen extends ConsumerWidget {
                       child: Row(
                         children: [
                           SpringPressable(
-                            onTap: () => context.pop(),
+                            onTap: () {
+                              if (context.canPop()) {
+                                context.pop();
+                              } else {
+                                context.go('/orders');
+                              }
+                            },
                             child: Container(
                               width: 38,
                               height: 38,

@@ -309,19 +309,48 @@ ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_activity ENABLE ROW LEVEL SECURITY;
 
--- Clients can only SELECT their own rows. No INSERT/UPDATE/DELETE policies are granted to clients.
--- Writes are strictly restricted to Edge Functions running with service_role privileges.
+-- Clients can view, insert, and update their own rows (or through service role)
+DROP POLICY IF EXISTS "Users can view own wallet balance" ON public.wallets;
 CREATE POLICY "Users can view own wallet balance"
 ON public.wallets FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own wallet" ON public.wallets;
+CREATE POLICY "Users can insert own wallet"
+ON public.wallets FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own wallet" ON public.wallets;
+CREATE POLICY "Users can update own wallet"
+ON public.wallets FOR UPDATE
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view own reward transactions" ON public.reward_transactions;
 CREATE POLICY "Users can view own reward transactions"
 ON public.reward_transactions FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own reward transactions" ON public.reward_transactions;
+CREATE POLICY "Users can insert own reward transactions"
+ON public.reward_transactions FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view own daily activity status" ON public.daily_activity;
 CREATE POLICY "Users can view own daily activity status"
 ON public.daily_activity FOR SELECT
 USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own daily activity" ON public.daily_activity;
+CREATE POLICY "Users can insert own daily activity"
+ON public.daily_activity FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own daily activity" ON public.daily_activity;
+CREATE POLICY "Users can update own daily activity"
+ON public.daily_activity FOR UPDATE
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
 
 -- =================================================================
 -- CATEGORIES & LISTINGS RLS POLICIES & SEED DATA

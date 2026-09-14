@@ -127,7 +127,7 @@ class _KidsPersonalizationScreenState extends ConsumerState<KidsPersonalizationS
                           return FilterChip(
                             selected: isSelected,
                             label: Text(interest),
-                            selectedColor: ToyVerseTheme.primaryOrange.withOpacity(0.2),
+                            selectedColor: ToyVerseTheme.primaryOrange.withValues(alpha: 0.2),
                             checkmarkColor: ToyVerseTheme.primaryOrange,
                             onSelected: (selected) {
                               setState(() {
@@ -146,18 +146,24 @@ class _KidsPersonalizationScreenState extends ConsumerState<KidsPersonalizationS
                       ToyButton(
                         text: 'Save & Unlock Magic ✨',
                         gradient: ToyVerseTheme.heroGradient,
-                        onPressed: () {
+                        onPressed: () async {
                           final child = ChildProfileModel(
                             id: 'child_${DateTime.now().millisecondsSinceEpoch}',
-                            name: _nameController.text.isEmpty ? 'Junior' : _nameController.text,
+                            name: _nameController.text.trim().isEmpty ? 'Junior' : _nameController.text.trim(),
                             age: _age.toInt(),
                             gender: _gender,
                             interests: _selectedInterests.toList(),
                             favoriteCharacter: _favoriteCharacter,
                             learningLevel: 'Explorer',
                           );
-                          ref.read(userProvider.notifier).addChild(child);
-                          ref.invalidate(userDataProvider);
+                          await ref.read(userProvider.notifier).addChild(child);
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Saved profile for ${child.name}! 🎈'),
+                              backgroundColor: ToyVerseTheme.primaryMintGreen,
+                            ),
+                          );
                           if (context.canPop()) {
                             context.pop();
                           } else {

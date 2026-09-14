@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_typography.dart';
@@ -32,9 +33,26 @@ class CategoryTileWidget extends StatelessWidget {
     this.isGridMode = true,
   });
 
+  Widget _buildFallbackIcon() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.08),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        category.icon,
+        size: 36,
+        color: ToyVerseTheme.primaryRoyalBlue,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final illustrationAsset = category.illustrationAsset;
+    final hasRemoteBanner = category.bannerUrl.isNotEmpty &&
+        (category.bannerUrl.startsWith('http://') || category.bannerUrl.startsWith('https://'));
 
     return SpringPressable(
       onTap: onTap,
@@ -44,7 +62,7 @@ class CategoryTileWidget extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 1. Clean White Tile Box with Large 3D Icon
+            // 1. Clean White Tile Box with Large 3D Icon or Banner
             AspectRatio(
               aspectRatio: 1.0,
               child: Container(
@@ -71,25 +89,25 @@ class CategoryTileWidget extends StatelessWidget {
                             illustrationAsset,
                             fit: BoxFit.contain,
                             filterQuality: FilterQuality.high,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              category.icon,
-                              size: 42,
-                              color: ToyVerseTheme.primaryRoyalBlue,
-                            ),
+                            errorBuilder: (context, error, stackTrace) => hasRemoteBanner
+                                ? CachedNetworkImage(
+                                    imageUrl: category.bannerUrl,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (c, u, e) => _buildFallbackIcon(),
+                                  )
+                                : _buildFallbackIcon(),
                           ),
                         )
-                      : Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            category.icon,
-                            size: 36,
-                            color: ToyVerseTheme.primaryRoyalBlue,
-                          ),
-                        ),
+                      : (hasRemoteBanner
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: CachedNetworkImage(
+                                imageUrl: category.bannerUrl,
+                                fit: BoxFit.cover,
+                                errorWidget: (c, u, e) => _buildFallbackIcon(),
+                              ),
+                            )
+                          : _buildFallbackIcon()),
                 ),
               ),
             ),

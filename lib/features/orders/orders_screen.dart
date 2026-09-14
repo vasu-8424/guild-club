@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../core/theme/app_typography.dart';
@@ -67,7 +66,6 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final asyncUserData = ref.watch(userDataProvider);
     final allOrders = ref.watch(ordersProvider);
     final filteredOrders = _filterOrders(allOrders);
 
@@ -131,7 +129,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                             ],
                           ),
                           SpringPressable(
-                            onTap: () => ref.invalidate(userDataProvider),
+                            onTap: () => ref.read(ordersProvider.notifier).refreshOrders(),
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
@@ -199,13 +197,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
 
               const SizedBox(height: 12),
 
-              // Orders List Body
+              // Orders List Body (Instant Zero-Delay Render)
               Expanded(
-                child: asyncUserData.when(
-                  loading: () => _buildShimmerOrderList(),
-                  error: (err, stack) => _buildOrdersList(filteredOrders),
-                  data: (data) => _buildOrdersList(filteredOrders),
-                ),
+                child: _buildOrdersList(filteredOrders),
               ),
             ],
           ),
@@ -217,8 +211,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
   Widget _buildOrdersList(List<OrderModel> orders) {
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(userDataProvider);
-        await ref.read(userDataProvider.future);
+        await ref.read(ordersProvider.notifier).refreshOrders();
       },
       child: orders.isEmpty
           ? ListView(
@@ -402,6 +395,27 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                                   Text('Delivery Address', style: AppTypography.displayMedium.copyWith(fontSize: 13, fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 2),
                                   Text(order.deliveryAddress, style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: ToyVerseTheme.textMuted)),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.06),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.15)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.storefront_rounded, size: 16, color: ToyVerseTheme.primaryRoyalBlue),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Origin: Hyderabad Store • Delivery: ${order.deliveryTimelineText} (Est. ${order.estimatedDeliveryFormatted})',
+                                            style: AppTypography.bodyMedium.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: ToyVerseTheme.primaryNavy),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   const SizedBox(height: 14),
                                   SpringPressable(
                                     onTap: () => context.push('/tracking/${order.id}'),
@@ -437,29 +451,6 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                 ).animate().fadeIn(duration: 350.ms, delay: (index * 30).ms).slideY(begin: 0.08, end: 0);
               },
             ),
-    );
-  }
-
-  Widget _buildShimmerOrderList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 4,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          height: 140,
-          child: Shimmer.fromColors(
-            baseColor: Colors.grey.shade300,
-            highlightColor: Colors.grey.shade100,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }
