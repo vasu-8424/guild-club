@@ -186,4 +186,85 @@ class LocationService {
       ),
     );
   }
+
+  /// Geocoding resolver for Andhra Pradesh and Indian cities/districts when GPS coordinate is missing
+  static ({double lat, double lng, String regionName}) resolveCityCoordinates(String addressText) {
+    final text = addressText.toLowerCase();
+
+    // Andhra Pradesh Major Cities & Districts
+    if (text.contains('visakhapatnam') || text.contains('vizag')) {
+      return (lat: 17.6868, lng: 83.2185, regionName: 'Visakhapatnam, Andhra Pradesh');
+    }
+    if (text.contains('vijayawada') || text.contains('amaravati')) {
+      return (lat: 16.5062, lng: 80.6480, regionName: 'Vijayawada, Andhra Pradesh');
+    }
+    if (text.contains('guntur')) {
+      return (lat: 16.3067, lng: 80.4365, regionName: 'Guntur, Andhra Pradesh');
+    }
+    if (text.contains('tirupati')) {
+      return (lat: 13.6288, lng: 79.4192, regionName: 'Tirupati, Andhra Pradesh');
+    }
+    if (text.contains('nellore')) {
+      return (lat: 14.4426, lng: 79.9865, regionName: 'Nellore, Andhra Pradesh');
+    }
+    if (text.contains('kurnool')) {
+      return (lat: 15.8281, lng: 78.0373, regionName: 'Kurnool, Andhra Pradesh');
+    }
+    if (text.contains('kakinada')) {
+      return (lat: 16.9891, lng: 82.2475, regionName: 'Kakinada, Andhra Pradesh');
+    }
+    if (text.contains('rajahmundry') || text.contains('rajamahendravaram')) {
+      return (lat: 17.0005, lng: 81.8040, regionName: 'Rajahmundry, Andhra Pradesh');
+    }
+    if (text.contains('kadapa') || text.contains('cuddapah')) {
+      return (lat: 14.4673, lng: 78.8241, regionName: 'Kadapa, Andhra Pradesh');
+    }
+    if (text.contains('anantapur')) {
+      return (lat: 14.6819, lng: 77.6006, regionName: 'Anantapur, Andhra Pradesh');
+    }
+    if (text.contains('eluru')) {
+      return (lat: 16.7107, lng: 81.0952, regionName: 'Eluru, Andhra Pradesh');
+    }
+    if (text.contains('ongole')) {
+      return (lat: 15.5057, lng: 80.0499, regionName: 'Ongole, Andhra Pradesh');
+    }
+    if (text.contains('chittoor')) {
+      return (lat: 13.2172, lng: 79.1003, regionName: 'Chittoor, Andhra Pradesh');
+    }
+    if (text.contains('srikakulam')) {
+      return (lat: 18.2949, lng: 83.8938, regionName: 'Srikakulam, Andhra Pradesh');
+    }
+    if (text.contains('vizianagaram')) {
+      return (lat: 18.1067, lng: 83.3956, regionName: 'Vizianagaram, Andhra Pradesh');
+    }
+    if (text.contains('machilipatnam')) {
+      return (lat: 16.1875, lng: 81.1389, regionName: 'Machilipatnam, Andhra Pradesh');
+    }
+    if (text.contains('andhra') || text.contains(' a.p') || text.contains(' ap ')) {
+      return (lat: 16.5062, lng: 80.6480, regionName: 'Andhra Pradesh');
+    }
+
+    // Other Indian Major Hubs
+    if (text.contains('bengaluru') || text.contains('bangalore') || text.contains('karnataka')) {
+      return (lat: 12.9716, lng: 77.5946, regionName: 'Bengaluru, Karnataka');
+    }
+    if (text.contains('chennai') || text.contains('tamil nadu')) {
+      return (lat: 13.0827, lng: 80.2707, regionName: 'Chennai, Tamil Nadu');
+    }
+    if (text.contains('mumbai') || text.contains('maharashtra')) {
+      return (lat: 19.0760, lng: 72.8777, regionName: 'Mumbai, Maharashtra');
+    }
+    if (text.contains('delhi') || text.contains('noida') || text.contains('gurgaon')) {
+      return (lat: 28.7041, lng: 77.1025, regionName: 'Delhi NCR');
+    }
+    if (text.contains('pune')) {
+      return (lat: 18.5204, lng: 73.8567, regionName: 'Pune, Maharashtra');
+    }
+    if (text.contains('kolkata') || text.contains('west bengal')) {
+      return (lat: 22.5726, lng: 88.3639, regionName: 'Kolkata, West Bengal');
+    }
+
+    // Default to Hyderabad Store Hub if local / unknown
+    return (lat: 17.5168, lng: 78.4735, regionName: 'Hyderabad, Telangana');
+  }
 }

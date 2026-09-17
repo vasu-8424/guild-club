@@ -185,14 +185,17 @@ class _AddressPickerScreenState extends ConsumerState<AddressPickerScreen> with 
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      'Detected Address',
-                                      style: AppTypography.displayMedium.copyWith(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: ToyVerseTheme.textDark,
+                                    Expanded(
+                                      child: Text(
+                                        'Detected Address',
+                                        style: AppTypography.displayMedium.copyWith(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w800,
+                                          color: ToyVerseTheme.textDark,
+                                        ),
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     SparkleBadge(
                                       label: 'GPS ${_currentLat.toStringAsFixed(3)}, ${_currentLng.toStringAsFixed(3)}',
                                       backgroundColor: ToyVerseTheme.primaryPurple,

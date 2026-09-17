@@ -393,6 +393,27 @@ class SupabaseService {
     }
   }
 
+  /// Realtime Stream subscription for live admin push notifications broadcast
+  static Stream<Map<String, dynamic>?> streamNotifications() {
+    if (!isInitialized || client == null) {
+      return Stream.value(null);
+    }
+    try {
+      return client!
+          .from('notifications_log')
+          .stream(primaryKey: ['id'])
+          .order('created_at', ascending: false)
+          .limit(1)
+          .map((maps) {
+            if (maps.isEmpty) return null;
+            return maps.first;
+          });
+    } catch (e) {
+      if (kDebugMode) print('Error setting up notification realtime stream: ');
+      return Stream.value(null);
+    }
+  }
+
   static Future<bool> saveOrder(OrderModel order) async {
     if (!isInitialized || client == null) return false;
     final effectiveUserId = getDeterministicUUID(order.userId);
@@ -401,11 +422,16 @@ class SupabaseService {
       userId: effectiveUserId.isNotEmpty ? effectiveUserId : order.userId,
     );
     try {
-      await client!.from('orders').insert(targetOrder.toJson());
-      if (kDebugMode) print('Saved order ${targetOrder.id} to Supabase');
+      // Use upsert so retries (e.g. after payment verification) do not throw duplicate-key errors
+      await client!.from('orders').upsert(
+        targetOrder.toJson(),
+        onConflict: 'id',
+      );
+      if (kDebugMode) print('[Supabase] Order ${targetOrder.id} saved successfully.');
       return true;
     } catch (e) {
-      if (kDebugMode) print('Error saving order to Supabase: $e');
+      // Log the full error so it is visible in Flutter debug console
+      if (kDebugMode) print('[Supabase] ERROR saving order ${targetOrder.id}: $e');
       return false;
     }
   }

@@ -293,10 +293,14 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                order.orderNumber,
-                                style: AppTypography.displayMedium.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                              Expanded(
+                                child: Text(
+                                  order.orderNumber,
+                                  style: AppTypography.displayMedium.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               SparkleBadge(
                                 label: order.status.name.toUpperCase(),
                                 backgroundColor: order.status == OrderStatus.delivered

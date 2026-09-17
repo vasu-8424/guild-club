@@ -1,5 +1,6 @@
-import 'product_model.dart';
+﻿import 'product_model.dart';
 import 'address_model.dart';
+import '../core/services/location_service.dart';
 
 enum OrderStatus {
   placed,
@@ -154,10 +155,13 @@ class OrderModel {
   final String deliveryPartnerPhone;
   final DateTime createdAt;
 
+  // Pricing breakdown fields (persisted to Supabase)
+  final double gstAmount;
+  final double deliveryFee;
+
   // Custom / Extended Fields
   final String? customOrderNumber;
   final double? customDiscountAmount;
-  final double? customShippingFee;
   final String? customPaymentMethod;
   final bool giftWrapped;
   final String? giftNote;
@@ -166,7 +170,7 @@ class OrderModel {
   DateTime get orderDate => createdAt;
   double get totalAmount => total;
   double get discountAmount => customDiscountAmount ?? 0.0;
-  double get shippingFee => customShippingFee ?? 0.0;
+  double get shippingFee => deliveryFee;
   String get deliveryAddress => deliveryAddressText ?? address?.fullAddress ?? 'Default Delivery Address';
   String get paymentMethod => customPaymentMethod ?? (razorpayPaymentId != null ? 'Razorpay UPI / Card' : 'Online Payment');
   int get statusStepIndex => status.stepIndex;
@@ -197,7 +201,8 @@ class OrderModel {
     DateTime? createdAt,
     String? orderNumber,
     double? discountAmount,
-    double? shippingFee,
+    double? gstAmount,
+    double? deliveryFee,
     String? paymentMethod,
     this.giftWrapped = false,
     this.giftNote,
@@ -209,9 +214,9 @@ class OrderModel {
         statusHistory = statusHistory ?? {
           'placed': (createdAt ?? DateTime.now()).toIso8601String(),
         },
-        originLocation = originLocation ?? 'Guild Club Fulfillment Hub, Hyderabad, Telangana',
-        originLat = originLat ?? 17.3850,
-        originLng = originLng ?? 78.4867,
+        originLocation = originLocation ?? 'Essen Marvella apartments, A block, 410, Suchitra Rd, Sriram Nagar, Jeedimetla, Hyderabad, Telangana 500055 (Landmark: Post Office)',
+        originLat = originLat ?? 17.5168,
+        originLng = originLng ?? 78.4735,
         deliveryAddressText = deliveryAddressText ?? address?.fullAddress,
         destinationLat = destinationLat ?? address?.latitude,
         destinationLng = destinationLng ?? address?.longitude,
@@ -219,21 +224,71 @@ class OrderModel {
         deliveryPartnerName = deliveryPartnerName ?? 'Alex (Guild Club Logistics)',
         deliveryPartnerPhone = deliveryPartnerPhone ?? '+91 98765 43210',
         customOrderNumber = orderNumber,
+        gstAmount = gstAmount ?? 0.0,
+        deliveryFee = deliveryFee ?? 0.0,
         customDiscountAmount = discountAmount,
-        customShippingFee = shippingFee,
         customPaymentMethod = paymentMethod;
 
   /// Returns true if destination is local to Hyderabad / Telangana
   bool get isLocalToHyderabad {
     final addrLower = (deliveryAddressText ?? address?.fullAddress ?? address?.city ?? '').toLowerCase();
+    // Explicit check: if it mentions Andhra Pradesh or Andhra cities or outstation, it is not local to Hyderabad
+    if (addrLower.contains('andhra') ||
+        addrLower.contains(' a.p') ||
+        addrLower.contains(' ap ') ||
+        addrLower.contains('visakhapatnam') ||
+        addrLower.contains('vizag') ||
+        addrLower.contains('vijayawada') ||
+        addrLower.contains('guntur') ||
+        addrLower.contains('tirupati') ||
+        addrLower.contains('nellore') ||
+        addrLower.contains('kurnool') ||
+        addrLower.contains('kakinada') ||
+        addrLower.contains('rajahmundry') ||
+        addrLower.contains('kadapa') ||
+        addrLower.contains('anantapur') ||
+        addrLower.contains('eluru') ||
+        addrLower.contains('ongole') ||
+        addrLower.contains('chittoor') ||
+        addrLower.contains('srikakulam') ||
+        addrLower.contains('vizianagaram') ||
+        addrLower.contains('machilipatnam') ||
+        addrLower.contains('bengaluru') ||
+        addrLower.contains('bangalore') ||
+        addrLower.contains('chennai') ||
+        addrLower.contains('mumbai') ||
+        addrLower.contains('delhi')) {
+      return false;
+    }
     return addrLower.contains('hyderabad') ||
         addrLower.contains('secunderabad') ||
         addrLower.contains('telangana') ||
         addrLower.contains('5000');
   }
 
+  /// Accurate destination coordinate resolution for live tracking map & distance
+  double get resolvedDestinationLat {
+    if (destinationLat != null && destinationLat != 0.0 && !(destinationLat == 17.3850 && !isLocalToHyderabad)) {
+      return destinationLat!;
+    }
+    if (address?.latitude != null && address!.latitude != 0.0 && !(address!.latitude == 17.3850 && !isLocalToHyderabad)) {
+      return address!.latitude;
+    }
+    return LocationService.resolveCityCoordinates(deliveryAddress).lat;
+  }
+
+  double get resolvedDestinationLng {
+    if (destinationLng != null && destinationLng != 0.0 && !(destinationLng == 78.4867 && !isLocalToHyderabad)) {
+      return destinationLng!;
+    }
+    if (address?.longitude != null && address!.longitude != 0.0 && !(address!.longitude == 78.4867 && !isLocalToHyderabad)) {
+      return address!.longitude;
+    }
+    return LocationService.resolveCityCoordinates(deliveryAddress).lng;
+  }
+
   /// Human-readable delivery timeline description based on destination
-  String get deliveryTimelineText => isLocalToHyderabad ? '2–3 Working Days' : '7–8 Working Days';
+  String get deliveryTimelineText => isLocalToHyderabad ? '2â€“3 Working Days' : '7â€“8 Working Days';
 
   /// Helper to get formatted timestamp for a given status step
   String? getStatusTimestamp(OrderStatus stage) {
@@ -291,7 +346,8 @@ class OrderModel {
     DateTime? createdAt,
     String? orderNumber,
     double? discountAmount,
-    double? shippingFee,
+    double? gstAmount,
+    double? deliveryFee,
     String? paymentMethod,
     bool? giftWrapped,
     String? giftNote,
@@ -321,7 +377,8 @@ class OrderModel {
       createdAt: createdAt ?? this.createdAt,
       orderNumber: orderNumber ?? customOrderNumber,
       discountAmount: discountAmount ?? customDiscountAmount,
-      shippingFee: shippingFee ?? customShippingFee,
+      gstAmount: gstAmount ?? this.gstAmount,
+      deliveryFee: deliveryFee ?? this.deliveryFee,
       paymentMethod: paymentMethod ?? customPaymentMethod,
       giftWrapped: giftWrapped ?? this.giftWrapped,
       giftNote: giftNote ?? this.giftNote,
@@ -356,11 +413,30 @@ class OrderModel {
       parsedHistory[parsedStatus.dbValue] = statusUpdatedAtDt.toIso8601String();
     }
 
+    final embeddedAddressMap = json['address'] as Map<String, dynamic>?;
+    final parsedEmbeddedAddress = embeddedAddressMap != null ? AddressModel.fromJson(embeddedAddressMap) : null;
+    final effectiveAddress = resolvedAddress ?? parsedEmbeddedAddress;
+
+    final deliveryAddressStr = json['delivery_address_text']?.toString() ??
+        json['delivery_address']?.toString() ??
+        effectiveAddress?.fullAddress ??
+        '';
+
+    final fallbackCoords = LocationService.resolveCityCoordinates(deliveryAddressStr);
+
+    final destLat = (json['destination_lat'] as num?)?.toDouble() ??
+        effectiveAddress?.latitude ??
+        (deliveryAddressStr.isNotEmpty ? fallbackCoords.lat : 17.5168);
+
+    final destLng = (json['destination_lng'] as num?)?.toDouble() ??
+        effectiveAddress?.longitude ??
+        (deliveryAddressStr.isNotEmpty ? fallbackCoords.lng : 78.4735);
+
     return OrderModel(
       id: json['id']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? 'user_guildclub_1',
-      addressId: json['address_id']?.toString(),
-      address: resolvedAddress,
+      addressId: json['address_id']?.toString() ?? effectiveAddress?.id,
+      address: effectiveAddress,
       items: parsedItems,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? (json['total'] as num?)?.toDouble() ?? 0.0,
       total: (json['total'] as num?)?.toDouble() ?? 0.0,
@@ -369,15 +445,19 @@ class OrderModel {
       status: parsedStatus,
       statusUpdatedAt: statusUpdatedAtDt,
       statusHistory: parsedHistory,
-      originLocation: json['origin_location']?.toString() ?? 'Guild Club Fulfillment Hub, Hyderabad, Telangana',
-      originLat: (json['origin_lat'] as num?)?.toDouble() ?? 17.3850,
-      originLng: (json['origin_lng'] as num?)?.toDouble() ?? 78.4867,
-      deliveryAddressText: json['delivery_address_text']?.toString() ?? resolvedAddress?.fullAddress,
-      destinationLat: (json['destination_lat'] as num?)?.toDouble() ?? resolvedAddress?.latitude,
-      destinationLng: (json['destination_lng'] as num?)?.toDouble() ?? resolvedAddress?.longitude,
+      originLocation: json['origin_location']?.toString() ?? 'Essen Marvella apartments, A block, 410, Suchitra Rd, Sriram Nagar, Jeedimetla, Hyderabad, Telangana 500055 (Landmark: Post Office)',
+      originLat: (json['origin_lat'] as num?)?.toDouble() ?? 17.5168,
+      originLng: (json['origin_lng'] as num?)?.toDouble() ?? 78.4735,
+      deliveryAddressText: deliveryAddressStr.isNotEmpty ? deliveryAddressStr : null,
+      destinationLat: destLat,
+      destinationLng: destLng,
       etaMinutes: (json['eta_minutes'] as num?)?.toInt() ?? 35,
       deliveryPartnerName: json['delivery_partner_name']?.toString() ?? 'Alex (Guild Club Logistics)',
       deliveryPartnerPhone: json['delivery_partner_phone']?.toString() ?? '+91 98765 43210',
+      gstAmount: (json['gst_amount'] as num?)?.toDouble() ?? 0.0,
+      deliveryFee: (json['delivery_fee'] as num?)?.toDouble() ?? 0.0,
+      discountAmount: (json['discount_amount'] as num?)?.toDouble() ?? 0.0,
+      paymentMethod: json['payment_method']?.toString(),
       createdAt: createdAtDt,
     );
   }
@@ -394,6 +474,19 @@ class OrderModel {
       if (razorpayOrderId != null && razorpayOrderId!.isNotEmpty) 'razorpay_order_id': razorpayOrderId,
       'status': status.dbValue,
       'created_at': createdAt.toIso8601String(),
+      'origin_location': originLocation,
+      'origin_lat': originLat,
+      'origin_lng': originLng,
+      'delivery_address_text': deliveryAddress,
+      'destination_lat': destinationLat ?? resolvedDestinationLat,
+      'destination_lng': destinationLng ?? resolvedDestinationLng,
+      'gst_amount': gstAmount,
+      'delivery_fee': deliveryFee,
+      'discount_amount': customDiscountAmount ?? 0.0,
+      'payment_method': customPaymentMethod ?? (razorpayPaymentId != null ? 'Razorpay UPI / Card' : 'Cash on Delivery'),
+      'status_history': statusHistory,
+      'status_updated_at': statusUpdatedAt.toIso8601String(),
+      if (address != null) 'address': address!.toJson(),
     };
   }
 }

@@ -1,9 +1,11 @@
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/toyverse_theme.dart';
@@ -22,17 +24,24 @@ class LiveTrackingScreen extends ConsumerWidget {
     required this.orderId,
   });
 
+  static const String storeOriginAddress =
+      'Essen Marvella apartments, A block, 410, Suchitra Rd, Sriram Nagar, Jeedimetla, Hyderabad, Telangana 500055 (Landmark: Post Office)';
+  static const double storeOriginLat = 17.5168;
+  static const double storeOriginLng = 78.4735;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Realtime Supabase live stream subscription
+    // Realtime Supabase live stream subscription (syncs with Admin Panel)
     final asyncOrderStream = ref.watch(singleOrderStreamProvider(orderId));
     final localOrders = ref.watch(ordersProvider);
+    final addresses = ref.watch(addressesProvider);
+    final defaultAddr = addresses.isNotEmpty ? addresses.first : null;
 
-    final OrderModel? order = asyncOrderStream.asData?.value ??
+    final OrderModel? rawOrder = asyncOrderStream.asData?.value ??
         localOrders.where((o) => o.id == orderId).firstOrNull ??
         (localOrders.isNotEmpty ? localOrders.first : null);
 
-    if (order == null) {
+    if (rawOrder == null) {
       return Scaffold(
         backgroundColor: ToyVerseTheme.bgWarmWhite,
         body: SafeArea(
@@ -66,6 +75,23 @@ class LiveTrackingScreen extends ConsumerWidget {
         ),
       );
     }
+
+    // Resolve accurate destination address and live GPS coordinates
+    final resolvedDestLat = rawOrder.resolvedDestinationLat;
+    final resolvedDestLng = rawOrder.resolvedDestinationLng;
+    final resolvedDeliveryAddress = (rawOrder.deliveryAddressText != null &&
+            rawOrder.deliveryAddressText!.isNotEmpty &&
+            !rawOrder.deliveryAddressText!.toLowerCase().contains('default delivery'))
+        ? rawOrder.deliveryAddressText!
+        : (rawOrder.address?.fullAddress != null && rawOrder.address!.fullAddress.isNotEmpty
+            ? rawOrder.address!.fullAddress
+            : (defaultAddr?.fullAddress ?? rawOrder.deliveryAddress));
+
+    final order = rawOrder.copyWith(
+      destinationLat: resolvedDestLat,
+      destinationLng: resolvedDestLng,
+      deliveryAddressText: resolvedDeliveryAddress,
+    );
 
     return Scaffold(
       backgroundColor: ToyVerseTheme.bgWarmWhite,
@@ -134,8 +160,8 @@ class LiveTrackingScreen extends ConsumerWidget {
                                     ),
                                     const SizedBox(width: 6),
                                     Container(
-                                      width: 7,
-                                      height: 7,
+                                      width: 8,
+                                      height: 8,
                                       decoration: BoxDecoration(
                                         color: order.status == OrderStatus.delivered
                                             ? ToyVerseTheme.primaryMintGreen
@@ -184,13 +210,13 @@ class LiveTrackingScreen extends ConsumerWidget {
 
                       const SizedBox(height: 16),
 
-                      // Liquid Progress Stepper Timeline
-                      _buildLiquidTimelineCard(order),
+                      // Interactive Live Delivery Route Map (From Essen Marvella to Customer)
+                      _buildLiveRouteMapCard(context, order),
 
                       const SizedBox(height: 16),
 
-                      // Static Fulfillment Route Map Card (Honest Representation)
-                      _buildHonestFulfillmentRouteCard(order),
+                      // Liquid Progress Stepper Timeline
+                      _buildLiquidTimelineCard(order),
 
                       const SizedBox(height: 16),
 
@@ -266,7 +292,10 @@ class LiveTrackingScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       isDelivered
@@ -281,7 +310,6 @@ class LiveTrackingScreen extends ConsumerWidget {
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
@@ -289,7 +317,7 @@ class LiveTrackingScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        'REALTIME SYNC ⚡',
+                        'ADMIN SYNC ⚡',
                         style: AppTypography.bodySmall.copyWith(
                           fontSize: 8,
                           fontWeight: FontWeight.bold,
@@ -317,6 +345,428 @@ class LiveTrackingScreen extends ConsumerWidget {
     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.06, end: 0);
   }
 
+  /// Live Interactive Route Map Card (Origin Store -> Customer Address with Visual Trajectory)
+  Widget _buildLiveRouteMapCard(BuildContext context, OrderModel order) {
+    final destLat = order.resolvedDestinationLat;
+    final destLng = order.resolvedDestinationLng;
+
+    // Calculate real distance from Essen Marvella (Jeedimetla Hub) to customer destination
+    final distanceKm = _calculateDistanceKm(storeOriginLat, storeOriginLng, destLat, destLng);
+    final isLocal = order.isLocalToHyderabad || distanceKm < 45.0;
+    final distanceDisplay = distanceKm > 0
+        ? '${distanceKm.toStringAsFixed(1)} km (${isLocal ? "Local Delivery" : "Express Outstation"})'
+        : 'Local Hyderabad Delivery';
+
+    return GlassCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.map_rounded, color: ToyVerseTheme.primaryRoyalBlue, size: 20),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Live Delivery Route Map',
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.displayMedium.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: ToyVerseTheme.textDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              SparkleBadge(
+                label: distanceDisplay,
+                backgroundColor: isLocal ? ToyVerseTheme.primaryNavy : ToyVerseTheme.primaryPurple,
+                fontSize: 9,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Visual Animated Map Canvas
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFF0FDF4),
+                    Colors.white,
+                    const Color(0xFFEFF6FF),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border.all(color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.2)),
+              ),
+              child: Stack(
+                children: [
+                  // Custom Road Grid & Highway Spline Painter
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _LiveRoutePainter(
+                        status: order.status,
+                      ),
+                    ),
+                  ),
+
+                  // Origin Hub Badge (Top-Left)
+                  Positioned(
+                    top: 14,
+                    left: 14,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: ToyVerseTheme.primaryRoyalBlue,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.storefront_rounded, color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Text(
+                                'ORIGIN: JEEDIMETLA HUB',
+                                style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
+                              ),
+                              Text(
+                                'Essen Marvella, Suchitra Rd',
+                                style: TextStyle(color: Colors.white70, fontSize: 8, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Destination Badge (Bottom-Right)
+                  Positioned(
+                    bottom: 14,
+                    right: 14,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: ToyVerseTheme.primaryRed,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: ToyVerseTheme.primaryRed.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on_rounded, color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'DELIVERY DESTINATION',
+                                style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
+                              ),
+                              Text(
+                                order.deliveryAddress.length > 20
+                                    ? '${order.deliveryAddress.substring(0, 20)}...'
+                                    : order.deliveryAddress,
+                                style: const TextStyle(color: Colors.white70, fontSize: 8, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Live Status Indicator in Center
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.3)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            order.status == OrderStatus.delivered
+                                ? Icons.check_circle_rounded
+                                : Icons.route_rounded,
+                            size: 13,
+                            color: order.status == OrderStatus.delivered
+                                ? ToyVerseTheme.primaryMintGreen
+                                : ToyVerseTheme.primaryRoyalBlue,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _getStatusDescription(order.status),
+                            style: AppTypography.bodySmall.copyWith(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: ToyVerseTheme.primaryNavy,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // Structured Origin & Destination Cards
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                // 1. Origin Store Hub Details
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.store_mall_directory_rounded, color: ToyVerseTheme.primaryRoyalBlue, size: 16),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 3,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: const [
+                              Text(
+                                'DISPATCH STORE & HUB',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: ToyVerseTheme.primaryRoyalBlue,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                              SparkleBadge(label: 'HUB GPS 17.5168, 78.4735', backgroundColor: ToyVerseTheme.primaryNavy, fontSize: 7),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            storeOriginAddress,
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: ToyVerseTheme.textDark,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Connecting Navigation Line
+                Padding(
+                  padding: const EdgeInsets.only(left: 15, top: 4, bottom: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      width: 2,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 2. Customer Destination Details
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: ToyVerseTheme.primaryRed.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.location_on_rounded, color: ToyVerseTheme.primaryRed, size: 16),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 3,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              const Text(
+                                'ORDERED DELIVERY LOCATION',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: ToyVerseTheme.primaryRed,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                              SparkleBadge(
+                                label: 'GPS: ${destLat.toStringAsFixed(4)}, ${destLng.toStringAsFixed(4)} • ${order.isLocalToHyderabad ? "Hyderabad/TS" : "Andhra/Outstation"}',
+                                backgroundColor: ToyVerseTheme.primaryPurple,
+                                fontSize: 7,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            order.deliveryAddress,
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: ToyVerseTheme.textDark,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Open in Google Maps Button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.4)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                backgroundColor: Colors.white,
+              ),
+              onPressed: () => _openGoogleMapsRoute(
+                originLat: storeOriginLat,
+                originLng: storeOriginLng,
+                destLat: destLat,
+                destLng: destLng,
+                destAddress: order.deliveryAddress,
+              ),
+              icon: const Icon(Icons.navigation_rounded, color: ToyVerseTheme.primaryRoyalBlue, size: 18),
+              label: Text(
+                'Open Full Route in Google Maps 🗺️',
+                style: AppTypography.bodyLarge.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: ToyVerseTheme.primaryRoyalBlue,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _getStatusDescription(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.placed:
+        return 'Order Received at Jeedimetla Hub';
+      case OrderStatus.preparing:
+        return 'Packing & Quality Check at Hub';
+      case OrderStatus.dispatched:
+        return 'In Transit on Suchitra Highway';
+      case OrderStatus.outForDelivery:
+        return 'Out for Delivery to Your Location';
+      case OrderStatus.delivered:
+        return 'Delivered at Doorstep';
+      case OrderStatus.cancelled:
+        return 'Order Cancelled';
+    }
+  }
+
+  static double _calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
+    const p = 0.017453292519943295;
+    final a = 0.5 -
+        math.cos((lat2 - lat1) * p) / 2 +
+        math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p)) / 2;
+    return 12742 * math.asin(math.sqrt(a));
+  }
+
+  static Future<void> _openGoogleMapsRoute({
+    required double originLat,
+    required double originLng,
+    required double destLat,
+    required double destLng,
+    required String destAddress,
+  }) async {
+    final url = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&origin=$originLat,$originLng&destination=$destLat,$destLng&travelmode=driving',
+    );
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        final fallbackUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(destAddress)}');
+        await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
   /// Liquid Progress Stepper Timeline Card (5 stages with liquid fill & timestamps)
   Widget _buildLiquidTimelineCard(OrderModel order) {
     final currentStep = order.statusStepIndex;
@@ -325,25 +775,25 @@ class LiveTrackingScreen extends ConsumerWidget {
       (
         status: OrderStatus.placed,
         title: 'Order Placed',
-        subtitle: 'Payment confirmed & registered',
+        subtitle: 'Confirmed & registered at Jeedimetla Hub',
         icon: Icons.receipt_long_rounded,
       ),
       (
         status: OrderStatus.preparing,
         title: 'Preparing & Packed',
-        subtitle: 'Carefully packaged at fulfillment center',
+        subtitle: 'Packaged at Essen Marvella Hub',
         icon: Icons.inventory_2_rounded,
       ),
       (
         status: OrderStatus.dispatched,
         title: 'Dispatched from Hub',
-        subtitle: 'Handed over to Guild Club express logistics',
+        subtitle: 'En route via Guild Club express logistics',
         icon: Icons.local_shipping_rounded,
       ),
       (
         status: OrderStatus.outForDelivery,
         title: 'Out for Delivery',
-        subtitle: 'Courier partner is en-route to delivery address',
+        subtitle: 'Courier partner is arriving at delivery location',
         icon: Icons.directions_bike_rounded,
       ),
       (
@@ -390,7 +840,6 @@ class LiveTrackingScreen extends ConsumerWidget {
             builder: (context, constraints) {
               return Stack(
                 children: [
-                  // Track background
                   Container(
                     height: 6,
                     width: constraints.maxWidth,
@@ -399,7 +848,6 @@ class LiveTrackingScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-                  // Animated Liquid Fill
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 600),
                     curve: Curves.easeOutCubic,
@@ -437,7 +885,6 @@ class LiveTrackingScreen extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Step Indicator Avatar
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     width: 32,
@@ -461,7 +908,6 @@ class LiveTrackingScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 14),
 
-                  // Step Texts & Timestamps
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,16 +915,19 @@ class LiveTrackingScreen extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              stage.title,
-                              style: AppTypography.displayMedium.copyWith(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.bold,
-                                color: isCurrent
-                                    ? ToyVerseTheme.primaryRed
-                                    : (isCompleted ? ToyVerseTheme.textDark : ToyVerseTheme.textMuted),
+                            Expanded(
+                              child: Text(
+                                stage.title,
+                                style: AppTypography.displayMedium.copyWith(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: isCurrent
+                                      ? ToyVerseTheme.primaryRed
+                                      : (isCompleted ? ToyVerseTheme.textDark : ToyVerseTheme.textMuted),
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 6),
                             if (timestamp != null)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -530,146 +979,6 @@ class LiveTrackingScreen extends ConsumerWidget {
               ),
             );
           }),
-        ],
-      ),
-    );
-  }
-
-  /// Honest Static Fulfillment Route Map Card (Origin Hub -> Destination Delivery Pin)
-  /// Honest Approach: Shows fixed origin hub coordinates and customer destination, without fake moving dots.
-  Widget _buildHonestFulfillmentRouteCard(OrderModel order) {
-    return GlassCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Fulfillment & Route Details',
-                style: AppTypography.displayMedium.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: ToyVerseTheme.textDark,
-                ),
-              ),
-              const SparkleBadge(
-                label: 'HONEST ROUTE MAP 📍',
-                backgroundColor: ToyVerseTheme.primaryNavy,
-                fontSize: 8,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Static Route Visual Representation
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: ToyVerseTheme.bgLightBlue,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.2)),
-            ),
-            child: Column(
-              children: [
-                // 1. Origin Hub Pin
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: const BoxDecoration(
-                        color: ToyVerseTheme.primaryRoyalBlue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.warehouse_rounded, color: Colors.white, size: 14),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ORIGIN FULFILLMENT HUB',
-                            style: AppTypography.bodySmall.copyWith(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
-                              color: ToyVerseTheme.primaryRoyalBlue,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            order.originLocation,
-                            style: AppTypography.bodyMedium.copyWith(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: ToyVerseTheme.textDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Connecting Line
-                Padding(
-                  padding: const EdgeInsets.only(left: 13, top: 4, bottom: 4),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      width: 2,
-                      height: 24,
-                      color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.4),
-                    ),
-                  ),
-                ),
-
-                // 2. Destination Pin
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: const BoxDecoration(
-                        color: ToyVerseTheme.primaryRed,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 14),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'DELIVERY DESTINATION',
-                            style: AppTypography.bodySmall.copyWith(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
-                              color: ToyVerseTheme.primaryRed,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            order.deliveryAddress,
-                            style: AppTypography.bodyMedium.copyWith(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: ToyVerseTheme.textDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -829,4 +1138,149 @@ class LiveTrackingScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Custom Route Map Painter depicting road spline trajectory and live vehicle position
+class _LiveRoutePainter extends CustomPainter {
+  final OrderStatus status;
+
+  _LiveRoutePainter({required this.status});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 1. Grid / Road Texture Background
+    final gridPaint = Paint()
+      ..color = Colors.blueGrey.withValues(alpha: 0.08)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    for (double x = 20; x < size.width; x += 40) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (double y = 20; y < size.height; y += 40) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    // 2. Highway Connecting Spline Path (From Top-Left Store to Bottom-Right Destination)
+    final start = Offset(size.width * 0.18, size.height * 0.35);
+    final control1 = Offset(size.width * 0.40, size.height * 0.18);
+    final control2 = Offset(size.width * 0.55, size.height * 0.82);
+    final end = Offset(size.width * 0.82, size.height * 0.65);
+
+    final path = Path()
+      ..moveTo(start.dx, start.dy)
+      ..cubicTo(control1.dx, control1.dy, control2.dx, control2.dy, end.dx, end.dy);
+
+    // Highway Road Bed
+    final roadBedPaint = Paint()
+      ..color = ToyVerseTheme.primaryNavy.withValues(alpha: 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12.0
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, roadBedPaint);
+
+    // Dynamic Route Line
+    final routePaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          ToyVerseTheme.primaryRoyalBlue,
+          ToyVerseTheme.primaryRed,
+        ],
+      ).createShader(Rect.fromPoints(start, end))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.0
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, routePaint);
+
+    // 3. Origin Point (Store) Marker
+    final originCenter = start;
+    final originHaloPaint = Paint()
+      ..color = ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.25)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(originCenter, 14, originHaloPaint);
+
+    final originDotPaint = Paint()
+      ..color = ToyVerseTheme.primaryRoyalBlue
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(originCenter, 7, originDotPaint);
+
+    final originInnerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(originCenter, 3.5, originInnerPaint);
+
+    // 4. Destination Point Marker
+    final destCenter = end;
+    final destHaloPaint = Paint()
+      ..color = ToyVerseTheme.primaryRed.withValues(alpha: 0.25)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(destCenter, 14, destHaloPaint);
+
+    final destDotPaint = Paint()
+      ..color = ToyVerseTheme.primaryRed
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(destCenter, 7, destDotPaint);
+
+    final destInnerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(destCenter, 3.5, destInnerPaint);
+
+    // 5. Courier Position along spline (Interpolated by Order Status)
+    double progress = 0.0;
+    switch (status) {
+      case OrderStatus.placed:
+        progress = 0.05;
+        break;
+      case OrderStatus.preparing:
+        progress = 0.20;
+        break;
+      case OrderStatus.dispatched:
+        progress = 0.52;
+        break;
+      case OrderStatus.outForDelivery:
+        progress = 0.85;
+        break;
+      case OrderStatus.delivered:
+        progress = 0.98;
+        break;
+      case OrderStatus.cancelled:
+        progress = 0.05;
+        break;
+    }
+
+    // Evaluate cubic bezier at parameter t = progress
+    final t = progress;
+    final u = 1 - t;
+    final courierX = u * u * u * start.dx +
+        3 * u * u * t * control1.dx +
+        3 * u * t * t * control2.dx +
+        t * t * t * end.dx;
+    final courierY = u * u * u * start.dy +
+        3 * u * u * t * control1.dy +
+        3 * u * t * t * control2.dy +
+        t * t * t * end.dy;
+
+    final courierPos = Offset(courierX, courierY);
+
+    // Draw Courier Vehicle Pulse & Avatar
+    final vehicleGlow = Paint()
+      ..color = (status == OrderStatus.delivered ? ToyVerseTheme.primaryMintGreen : ToyVerseTheme.primaryOrange)
+          .withValues(alpha: 0.35);
+    canvas.drawCircle(courierPos, 16, vehicleGlow);
+
+    final vehicleBody = Paint()
+      ..color = (status == OrderStatus.delivered ? ToyVerseTheme.primaryMintGreen : ToyVerseTheme.primaryOrange)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(courierPos, 9, vehicleBody);
+
+    final vehicleCore = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(courierPos, 4, vehicleCore);
+  }
+
+  @override
+  bool shouldRepaint(covariant _LiveRoutePainter oldDelegate) =>
+      oldDelegate.status != status;
 }

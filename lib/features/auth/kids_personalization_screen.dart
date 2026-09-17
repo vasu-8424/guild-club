@@ -157,7 +157,7 @@ class _KidsPersonalizationScreenState extends ConsumerState<KidsPersonalizationS
                             learningLevel: 'Explorer',
                           );
                           await ref.read(userProvider.notifier).addChild(child);
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Saved profile for ${child.name}! 🎈'),

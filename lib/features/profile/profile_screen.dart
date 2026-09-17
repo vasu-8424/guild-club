@@ -483,13 +483,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 2,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
                                       Text(
                                         addresses.first.label,
                                         style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.bold, fontSize: 15),
                                       ),
-                                      const SizedBox(width: 6),
                                       const SparkleBadge(
                                         label: 'DEFAULT',
                                         backgroundColor: ToyVerseTheme.primaryNavy,
@@ -519,9 +521,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Children Profiles 👧👦',
-                        style: AppTypography.displayMedium.copyWith(fontSize: 18, fontWeight: FontWeight.bold),
+                      Expanded(
+                        child: Text(
+                          'Children Profiles 👧👦',
+                          style: AppTypography.displayMedium.copyWith(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       SpringPressable(
                         onTap: () => context.push('/kids-setup'),
@@ -673,13 +677,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           'Address Book (GPS Location) 📍',
                           () => context.push('/address-picker'),
                         ),
-                        if (user.isAdmin)
-                          _buildSpringMenuItem(
-                            context,
-                            Icons.admin_panel_settings_rounded,
-                            'Admin Management Portal 🛡️',
-                            () => context.push('/admin'),
-                          ),
                         _buildSpringMenuItem(
                           context,
                           Icons.favorite_rounded,

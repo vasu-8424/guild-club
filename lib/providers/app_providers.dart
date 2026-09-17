@@ -12,6 +12,7 @@ import '../repositories/mock_toy_data.dart';
 import '../core/services/supabase_service.dart';
 import '../core/services/address_storage_service.dart';
 import '../core/services/child_storage_service.dart';
+import '../core/services/order_storage_service.dart';
 
 // User State Provider
 final userProvider = StateNotifierProvider<UserNotifier, UserModel>((ref) {
@@ -440,13 +441,37 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
   }
 
   Future<void> _initOrders() async {
+    // 1. Load locally cached orders from device storage immediately
+    final localOrders = await OrderStorageService.loadLocalOrders();
+    if (localOrders.isNotEmpty && mounted) {
+      state = localOrders;
+    }
+
+    // 2. Fetch remote orders from Supabase & merge rich fields
     try {
       final user = ref.read(userProvider);
       final userId = user.id.isNotEmpty ? user.id : 'user_guildclub_1';
       final allProducts = ref.read(productsProvider);
       final remote = await SupabaseService.fetchUserOrders(userId, allProducts: allProducts);
       if (remote.isNotEmpty && mounted) {
-        state = remote;
+        final merged = <OrderModel>[];
+        for (final r in remote) {
+          final localMatch = localOrders.where((l) => l.id == r.id).firstOrNull;
+          merged.add(r.copyWith(
+            destinationLat: r.destinationLat ?? localMatch?.destinationLat,
+            destinationLng: r.destinationLng ?? localMatch?.destinationLng,
+            deliveryAddressText: r.deliveryAddressText ?? localMatch?.deliveryAddressText,
+            address: r.address ?? localMatch?.address,
+          ));
+        }
+        // Include any local orders that haven't synced to remote yet
+        for (final l in localOrders) {
+          if (!merged.any((m) => m.id == l.id)) {
+            merged.add(l);
+          }
+        }
+        state = merged;
+        await OrderStorageService.saveLocalOrders(merged);
       }
     } catch (_) {}
   }
@@ -457,10 +482,15 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
 
   Future<bool> placeOrder(OrderModel order) async {
     final currentUserId = ref.read(userProvider).id;
-    final targetOrder = order.userId.isEmpty ? order.copyWith(userId: currentUserId.isNotEmpty ? currentUserId : 'user_guildclub_1') : order;
+    final targetOrder = order.userId.isEmpty
+        ? order.copyWith(userId: currentUserId.isNotEmpty ? currentUserId : 'user_guildclub_1')
+        : order;
 
+    // Immediately update in-memory state & persist to local storage
     state = [targetOrder, ...state];
+    await OrderStorageService.addOrUpdateLocalOrder(targetOrder);
 
+    // Sync to Supabase in background
     try {
       await SupabaseService.saveOrder(targetOrder);
     } catch (_) {}
@@ -487,6 +517,8 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
         if (o.id == orderId) updatedOrder else o
     ];
 
+    await OrderStorageService.updateLocalOrderStatus(orderId, newStatus);
+
     try {
       await SupabaseService.updateOrderStatus(
         orderId,
@@ -498,15 +530,28 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
   }
 }
 
-/// Realtime live tracking stream provider for a specific order
+/// Realtime live tracking stream provider for a specific order with robust coordinate & address preservation
 final singleOrderStreamProvider = StreamProvider.family<OrderModel?, String>((ref, orderId) {
   final allProducts = ref.watch(productsProvider);
   final localOrders = ref.watch(ordersProvider);
+  final addresses = ref.watch(addressesProvider);
+  final defaultAddress = addresses.isNotEmpty ? addresses.first : null;
   final localMatch = localOrders.where((o) => o.id == orderId).firstOrNull;
 
-  // Supabase Realtime stream
-  return SupabaseService.streamOrder(orderId, allProducts: allProducts)
-      .map((remoteOrder) => remoteOrder ?? localMatch);
+  // Supabase Realtime stream mapped with address fallback
+  return SupabaseService.streamOrder(orderId, allProducts: allProducts).map((remoteOrder) {
+    if (remoteOrder == null) return localMatch;
+    final effectiveAddr = addresses.where((a) => a.id == remoteOrder.addressId).firstOrNull ??
+        localMatch?.address ??
+        defaultAddress;
+
+    return remoteOrder.copyWith(
+      deliveryAddressText: remoteOrder.deliveryAddressText ?? localMatch?.deliveryAddressText ?? effectiveAddr?.fullAddress,
+      destinationLat: remoteOrder.destinationLat ?? localMatch?.destinationLat ?? effectiveAddr?.latitude,
+      destinationLng: remoteOrder.destinationLng ?? localMatch?.destinationLng ?? effectiveAddr?.longitude,
+      address: remoteOrder.address ?? localMatch?.address ?? effectiveAddr,
+    );
+  });
 });
 
 // Admin Stats Provider

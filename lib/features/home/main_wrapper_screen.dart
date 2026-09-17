@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'dart:async';
+import '../../core/services/supabase_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,6 +33,8 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
   late final AnimationController _headerController;
   late final AnimationController _coinPulseController;
   int _lastRewardCoins = 0;
+  StreamSubscription? _notifSub;
+  String? _lastNotifId;
 
   @override
   void initState() {
@@ -44,6 +48,27 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
       duration: const Duration(milliseconds: 420),
       reverseDuration: const Duration(milliseconds: 260),
     );
+
+    // Realtime notification stream from Admin Panel broadcasts
+    bool isFirstEvent = true;
+    _notifSub = SupabaseService.streamNotifications().listen((notif) {
+      if (!mounted || notif == null) return;
+      final id = notif['id']?.toString();
+      final status = notif['status']?.toString();
+      final title = notif['title']?.toString() ?? 'Guild Club';
+      final body = notif['body']?.toString() ?? '';
+
+      if (isFirstEvent) {
+        isFirstEvent = false;
+        _lastNotifId = id;
+        return; // Cold start baseline
+      }
+
+      if (id != null && id != _lastNotifId && status == 'sent') {
+        _lastNotifId = id;
+        _showInAppNotificationBanner(title, body);
+      }
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -60,9 +85,76 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
 
   @override
   void dispose() {
+    _notifSub?.cancel();
     _headerController.dispose();
     _coinPulseController.dispose();
     super.dispose();
+  }
+
+  void _showInAppNotificationBanner(String title, String body) {
+    if (!mounted) return;
+    // 1. Show interactive popup dialog
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: const Color(0xFF0F172A),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD97706).withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.notifications_active_rounded,
+                  color: Color(0xFFF59E0B),
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                body,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF59E0B),
+                    foregroundColor: const Color(0xFF0F172A),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Got it! ??', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
   final List<Widget> _pages = const [
     HomeFeedView(),

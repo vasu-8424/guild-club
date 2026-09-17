@@ -400,7 +400,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                           ),
                           _buildBullet(
                             'Grievance Redressal Officer (India):',
-                            'Designated Grievance Officer\nGuild Club Parent Experience Hub\nBanjara Hills, Hyderabad, Telangana 500034, India\nPhone: +91 98765 43210',
+                            'Designated Grievance Officer\nGuild Club Parent Experience Hub\nEssen Marvella apartments, A block, 410, Suchitra Rd, Sriram Nagar, Jeedimetla, Hyderabad, Telangana 500055 (Landmark: Post Office)\nPhone: +91 98765 43210',
                           ),
                           _buildBullet(
                             'Legal Note:',

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
@@ -85,7 +85,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Coupon applied. Saved ₹100.'),
+          content: Text('Coupon applied. Saved â‚¹100.'),
           backgroundColor: ToyVerseTheme.primaryMintGreen,
         ),
       );
@@ -94,7 +94,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Use code GUILDCLUB100 for ₹100 off.'),
+        content: Text('Use code GUILDCLUB100 for â‚¹100 off.'),
         backgroundColor: ToyVerseTheme.primaryOrange,
       ),
     );
@@ -176,9 +176,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
       deliveryAddressText: selectedAddress?.fullAddress,
       destinationLat: selectedAddress?.latitude,
       destinationLng: selectedAddress?.longitude,
-      originLocation: 'Guild Club Fulfillment Hub, Hyderabad, Telangana',
-      originLat: 17.3850,
-      originLng: 78.4867,
+      originLocation: 'Essen Marvella apartments, A block, 410, Suchitra Rd, Sriram Nagar, Jeedimetla, Hyderabad, Telangana 500055 (Landmark: Post Office)',
+      originLat: 17.5168,
+      originLng: 78.4735,
       items: cartItems
           .map(
             (item) => OrderItemModel(
@@ -193,6 +193,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
           .toList(),
       subtotal: totals.discountedSubtotal,
       total: totals.total,
+      gstAmount: totals.gst,
+      deliveryFee: totals.deliveryFee,
+      discountAmount: _appliedDiscount,
+      paymentMethod: 'Razorpay UPI / Card',
       razorpayPaymentId: response.paymentId ?? 'pay_mock_123',
       razorpayOrderId: response.orderId ?? 'order_mock_123',
       status: OrderStatus.placed,
@@ -271,9 +275,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
       deliveryAddressText: address?.fullAddress,
       destinationLat: address?.latitude,
       destinationLng: address?.longitude,
-      originLocation: 'Guild Club Fulfillment Hub, Hyderabad, Telangana',
-      originLat: 17.3850,
-      originLng: 78.4867,
+      originLocation: 'Essen Marvella apartments, A block, 410, Suchitra Rd, Sriram Nagar, Jeedimetla, Hyderabad, Telangana 500055 (Landmark: Post Office)',
+      originLat: 17.5168,
+      originLng: 78.4735,
       items: cartItems
           .map(
             (item) => OrderItemModel(
@@ -288,6 +292,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
           .toList(),
       subtotal: totals.discountedSubtotal,
       total: totals.total,
+      gstAmount: totals.gst,
+      deliveryFee: totals.deliveryFee,
+      discountAmount: _appliedDiscount,
+      paymentMethod: 'Cash on Delivery',
       status: OrderStatus.placed,
       statusUpdatedAt: DateTime.now(),
       statusHistory: {
@@ -427,10 +435,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                Row(
+                                                Wrap(
+                                                  spacing: 6,
+                                                  crossAxisAlignment: WrapCrossAlignment.center,
                                                   children: [
                                                     Text(selectedAddress.label, style: AppTypography.bodyLarge.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
-                                                    const SizedBox(width: 6),
                                                     const SparkleBadge(label: 'DELIVERY PIN', backgroundColor: ToyVerseTheme.primaryNavy, fontSize: 8),
                                                   ],
                                                 ),
@@ -465,7 +474,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
-                                            'GPS: ${selectedAddress.latitude.toStringAsFixed(4)}, ${selectedAddress.longitude.toStringAsFixed(4)} • ${selectedAddress.city}',
+                                            'GPS: ${selectedAddress.latitude.toStringAsFixed(4)}, ${selectedAddress.longitude.toStringAsFixed(4)} â€¢ ${selectedAddress.city}',
                                             style: AppTypography.bodyMedium.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: ToyVerseTheme.primaryNavy),
                                           ),
                                         ),
@@ -508,12 +517,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Guild Club Fulfillment Hub, Hyderabad',
+                                        'Guild Club Hub, Essen Marvella, Suchitra Rd, Jeedimetla, Hyderabad',
                                         style: AppTypography.bodyLarge.copyWith(fontSize: 13, fontWeight: FontWeight.w800, color: ToyVerseTheme.primaryNavy),
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
-                                        'Hyderabad Local: 2–3 Days • Out of Hyderabad: 7–8 Working Days',
+                                        'Landmark: Post Office â€¢ Hyderabad Local: 2â€“3 Days â€¢ Outside: 7â€“8 Days',
                                         style: AppTypography.bodyMedium.copyWith(fontSize: 11, color: ToyVerseTheme.textDark, fontWeight: FontWeight.w600),
                                       ),
                                     ],
@@ -561,7 +570,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                     if (_appliedCouponCode != null)
                                       Expanded(
                                         child: Text(
-                                          'Applied: $_appliedCouponCode (-₹${_appliedDiscount.toInt()})',
+                                          'Applied: $_appliedCouponCode (-â‚¹${_appliedDiscount.toInt()})',
                                           style: AppTypography.bodyMedium.copyWith(color: ToyVerseTheme.primaryMintGreen, fontWeight: FontWeight.w700),
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -627,7 +636,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                       children: [
                                         Text('Promo Discount', style: AppTypography.bodyMedium.copyWith(fontSize: 14, color: ToyVerseTheme.primaryMintGreen, fontWeight: FontWeight.w600)),
                                         Text(
-                                          '-₹${_appliedDiscount.toStringAsFixed(0)}',
+                                          '-â‚¹${_appliedDiscount.toStringAsFixed(0)}',
                                           style: AppTypography.priceNumeral.copyWith(fontSize: 15, color: ToyVerseTheme.primaryMintGreen, fontWeight: FontWeight.w700),
                                         ),
                                       ],
@@ -638,17 +647,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Text('Delivery Fee', style: AppTypography.bodyMedium.copyWith(fontSize: 14, color: ToyVerseTheme.textMuted)),
-                                          if (totals.deliveryFee == 0) ...[
-                                            const SizedBox(width: 6),
-                                            const SparkleBadge(label: 'FREE > ₹499', backgroundColor: ToyVerseTheme.primaryMintGreen, fontSize: 8),
+                                      Expanded(
+                                        child: Wrap(
+                                          spacing: 6,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          children: [
+                                            Text('Delivery Fee', style: AppTypography.bodyMedium.copyWith(fontSize: 14, color: ToyVerseTheme.textMuted)),
+                                            if (totals.deliveryFee == 0)
+                                              const SparkleBadge(label: 'FREE > â‚¹499', backgroundColor: ToyVerseTheme.primaryMintGreen, fontSize: 8),
                                           ],
-                                        ],
+                                        ),
                                       ),
                                       Text(
-                                        totals.deliveryFee == 0 ? 'FREE' : '₹${totals.deliveryFee.toStringAsFixed(0)}',
+                                        totals.deliveryFee == 0 ? 'FREE' : 'â‚¹${totals.deliveryFee.toStringAsFixed(0)}',
                                         style: AppTypography.priceNumeral.copyWith(
                                           fontSize: 15,
                                           color: totals.deliveryFee == 0 ? ToyVerseTheme.primaryMintGreen : ToyVerseTheme.textDark,
@@ -665,7 +676,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                   children: [
                                     Text('Total', style: AppTypography.displayMedium.copyWith(fontSize: 20, fontWeight: FontWeight.w800)),
                                     Text(
-                                      '₹${totals.total.toStringAsFixed(0)}',
+                                      'â‚¹${totals.total.toStringAsFixed(0)}',
                                       style: AppTypography.priceNumeral.copyWith(fontSize: 22, color: ToyVerseTheme.primaryOrange),
                                     ),
                                   ],
@@ -681,7 +692,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                     padding: const EdgeInsets.all(20),
                     decoration: const BoxDecoration(color: Colors.white),
                     child: ToyButton(
-                      text: 'Pay ₹${totals.total.toStringAsFixed(0)}',
+                      text: 'Pay â‚¹${totals.total.toStringAsFixed(0)}',
                       gradient: ToyVerseTheme.orangeYellowGradient,
                       isLoading: _isProcessingPayment,
                       onPressed: () {
@@ -816,7 +827,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
         children: [
           Text(label, style: AppTypography.bodyMedium.copyWith(fontSize: 14, color: ToyVerseTheme.textMuted)),
           Text(
-            '₹${amount.toStringAsFixed(0)}',
+            'â‚¹${amount.toStringAsFixed(0)}',
             style: AppTypography.priceNumeral.copyWith(fontSize: 15, color: ToyVerseTheme.textDark),
           ),
         ],
