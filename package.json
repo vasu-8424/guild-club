@@ -1,0 +1,9 @@
+{
+  "name": "guild-club",
+  "version": "1.0.0",
+  "description": "Guild Club - Premium Kids Toys & Developmental Concierge",
+  "scripts": {
+    "build": "bash build.sh",
+    "vercel-build": "bash build.sh"
+  }
+}
