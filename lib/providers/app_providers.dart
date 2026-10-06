@@ -147,16 +147,14 @@ final productsProvider = StateNotifierProvider<ProductsNotifier, List<ProductMod
 });
 
 class ProductsNotifier extends StateNotifier<List<ProductModel>> {
-  ProductsNotifier() : super(MockToyData.products) {
+  ProductsNotifier() : super(const []) {
     loadProducts();
   }
 
   Future<void> loadProducts() async {
     try {
       final fetched = await SupabaseService.fetchProducts();
-      if (fetched.isNotEmpty) {
-        state = fetched;
-      }
+      state = fetched;
     } catch (_) {}
   }
 

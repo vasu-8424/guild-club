@@ -3,15 +3,14 @@ import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/services/supabase_service.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/toyverse_theme.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_providers.dart';
-import '../../repositories/mock_toy_data.dart';
 import 'widgets/room_fit_modal.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -27,11 +26,40 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
     with TickerProviderStateMixin {
   late final PageController _imageController;
   int _selectedImageIndex = 0;
+  ProductModel? _directProduct;
+  bool _isLoadingDirect = false;
 
   @override
   void initState() {
     super.initState();
     _imageController = PageController();
+    _fetchProductIfNeeded();
+  }
+
+  Future<void> _fetchProductIfNeeded() async {
+    final products = ref.read(productsProvider);
+    final exists = products.any((p) => p.id == widget.productId);
+    if (!exists && SupabaseService.isInitialized && SupabaseService.client != null) {
+      setState(() => _isLoadingDirect = true);
+      try {
+        final response = await SupabaseService.client!
+            .from('products')
+            .select('*')
+            .eq('id', widget.productId)
+            .maybeSingle();
+
+        if (response != null && mounted) {
+          setState(() {
+            _directProduct = ProductModel.fromJson(response);
+            _isLoadingDirect = false;
+          });
+        } else if (mounted) {
+          setState(() => _isLoadingDirect = false);
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isLoadingDirect = false);
+      }
+    }
   }
 
   @override
@@ -40,65 +68,136 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
     super.dispose();
   }
 
-  /// Resolves the solid background color for the top panel based on product brand/category
-  Color _resolvePanelColor(ProductModel product) {
+  /// Resolves the studio background color for the hero product image area
+  LinearGradient _resolveHeroGradient(ProductModel product) {
     final key = '${product.categorySlug}_${product.id}'.toLowerCase();
-    if (key.contains('play') || key.contains('school') || key.contains('c1000000-0000-0000-0000-000000000001')) {
-      return const Color(0xFF1E3A8A); // Royal Navy Blue
-    } else if (key.contains('child') || key.contains('c1000000-0000-0000-0000-000000000002')) {
-      return const Color(0xFFB91C1C); // Heraldic Crest Red
-    } else if (key.contains('interior') || key.contains('c1000000-0000-0000-0000-000000000004')) {
-      return const Color(0xFF0F172A); // Obsidian Midnight Navy
-    } else if (key.contains('speech') || key.contains('special') || key.contains('occupational')) {
-      return const Color(0xFF047857); // Deep Sage Emerald
+    if (key.contains('play') || key.contains('school')) {
+      return const LinearGradient(
+        colors: [Color(0xFF1E3A8A), Color(0xFF0F172A)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
+    } else if (key.contains('child')) {
+      return const LinearGradient(
+        colors: [Color(0xFF991B1B), Color(0xFF450A0A)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
+    } else if (key.contains('interior')) {
+      return const LinearGradient(
+        colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
     }
-    // Default fallback to signature Crest Red
-    return const Color(0xFFB91C1C);
+    return const LinearGradient(
+      colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(productsProvider);
     final categories = ref.watch(categoriesProvider);
-    final product = products.firstWhere(
-      (p) => p.id == widget.productId,
-      orElse: () => MockToyData.products.firstWhere(
-        (p) => p.id == widget.productId,
-        orElse: () => MockToyData.products.first,
-      ),
-    );
-    final isRoomFitEligible = product.isRoomFitSupported(categories);
+
+    final product = products.where((p) => p.id == widget.productId).firstOrNull ??
+        _directProduct;
 
     final wishlist = ref.watch(wishlistProvider);
-    final isFavorite = wishlist.contains(product.id);
+    final isFavorite = product != null ? wishlist.contains(product.id) : false;
     final cart = ref.watch(cartProvider);
     final cartItemCount = cart.fold<int>(0, (sum, item) => sum + item.quantity);
 
-    final panelColor = _resolvePanelColor(product);
-    final size = MediaQuery.of(context).size;
-    final topPanelHeight = size.height * 0.52;
+    if (product == null) {
+      if (_isLoadingDirect) {
+        return const Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(ToyVerseTheme.primaryRed),
+            ),
+          ),
+        );
+      }
+
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.inventory_2_outlined, size: 64, color: Color(0xFF94A3B8)),
+              const SizedBox(height: 16),
+              Text(
+                'Product Not Found',
+                style: AppTypography.titleLarge.copyWith(color: const Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This item is no longer available in the database.',
+                style: AppTypography.bodyMedium.copyWith(color: const Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => context.go('/'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F172A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Back to Home', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final isRoomFitEligible = product.isRoomFitSupported(categories);
+    final heroGradient = _resolveHeroGradient(product);
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.light,
-        child: Stack(
-          children: [
-            // 1. TOP SOLID COLOR PANEL (Product Image + Carousel)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: topPanelHeight + 30, // Slight overflow behind bottom sheet
-              child: Container(
-                color: panelColor,
-                child: SafeArea(
-                  bottom: false,
+      body: Stack(
+        children: [
+          // 1. UNIFIED NATURAL SCROLL VIEW (Image + Details scroll together)
+          SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // A. HERO PRODUCT IMAGE STUDIO SECTION (Scrolls away with page)
+                Container(
+                  width: double.infinity,
+                  height: 380,
+                  decoration: BoxDecoration(
+                    gradient: heroGradient,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(32),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
                   child: Stack(
                     children: [
-                      // Product Image Swipe Carousel
+                      // Product Image Carousel
                       Positioned.fill(
-                        top: 50,
+                        top: 70,
                         bottom: 40,
                         child: PageView.builder(
                           controller: _imageController,
@@ -110,11 +209,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                           itemBuilder: (context, index) {
                             final imageUrl = product.imageUrls.isNotEmpty
                                 ? product.imageUrls[index]
-                                : 'https://images.unsplash.com/photo-1558060370-d644479cb6f7?q=80&w=800';
+                                : '';
+
+                            if (imageUrl.isEmpty) {
+                              return const Center(
+                                child: Icon(Icons.toys_rounded, size: 72, color: Colors.white70),
+                              );
+                            }
 
                             return Center(
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                                 child: CachedNetworkImage(
                                   imageUrl: imageUrl,
                                   fit: BoxFit.contain,
@@ -128,7 +233,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                                   errorWidget: (context, url, error) => const Center(
                                     child: Icon(
                                       Icons.toys_rounded,
-                                      size: 80,
+                                      size: 72,
                                       color: Colors.white70,
                                     ),
                                   ),
@@ -136,18 +241,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                               ),
                             );
                           },
-                        ).animate().fadeIn(duration: 500.ms).scale(
-                              begin: const Offset(0.92, 0.92),
-                              end: const Offset(1, 1),
-                              duration: 600.ms,
-                              curve: Curves.easeOutBack,
-                            ),
+                        ),
                       ),
 
-                      // Minimal Page Dot Indicators (if multiple images exist)
+                      // Carousel Dot Indicators
                       if (product.imageUrls.length > 1)
                         Positioned(
-                          bottom: 48,
+                          bottom: 18,
                           left: 0,
                           right: 0,
                           child: Row(
@@ -161,540 +261,553 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                                 width: isSelected ? 18 : 6,
                                 height: 6,
                                 decoration: BoxDecoration(
-                                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35),
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                               );
                             }),
                           ),
                         ),
-
-                      // Top Navigation Bar (Back Arrow + Cart Bag Button)
-                      Positioned(
-                        top: 10,
-                        left: 20,
-                        right: 20,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Back Button (Flat circular button with magnetic press)
-                            _CircularIconButton(
-                              icon: Icons.arrow_back_rounded,
-                              onPressed: () {
-                                if (context.canPop()) {
-                                  context.pop();
-                                } else {
-                                  context.go('/');
-                                }
-                              },
-                            ),
-
-                            // Cart / Bag Button (Flat circular button with item badge)
-                            _CircularIconButton(
-                              icon: Icons.shopping_bag_outlined,
-                              badgeCount: cartItemCount,
-                              onPressed: () => context.push('/cart'),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
-              ),
-            ),
 
-            // 2. OVERLAPPING WHITE BOTTOM SHEET (Product Info + Action Row)
-            Positioned(
-              top: topPanelHeight,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x1F000000),
-                      blurRadius: 24,
-                      offset: Offset(0, -6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Scrollable Product Details Content
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(24, 26, 24, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Title & Price Row
-                            Row(
+                // B. PRODUCT DETAILS EDITORIAL BODY (Continuous flow)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. Title, Subtitle & Price
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Title & Subtitle
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        product.title,
-                                        style: AppTypography.displayMedium.copyWith(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w900,
-                                          color: const Color(0xFF0F172A),
-                                          letterSpacing: -0.6,
-                                          height: 1.15,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        product.subtitle.isNotEmpty
-                                            ? product.subtitle
-                                            : '${product.brandName} · Official Toy',
-                                        style: AppTypography.bodyMedium.copyWith(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                          color: const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                const SizedBox(width: 14),
-
-                                // Right-Aligned Price Numeral
                                 Text(
-                                  '₹${product.price.toInt()}',
-                                  style: AppTypography.priceNumeral.copyWith(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
+                                  product.title,
+                                  style: AppTypography.displayMedium.copyWith(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
                                     color: const Color(0xFF0F172A),
-                                    letterSpacing: -0.5,
+                                    letterSpacing: -0.4,
+                                    height: 1.2,
+                                  ),
+                                ),
+                                if (product.subtitle.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    product.subtitle,
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '₹${product.price.toInt()}',
+                                style: AppTypography.priceNumeral.copyWith(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF0F172A),
+                                  letterSpacing: -0.4,
+                                ),
+                              ),
+                              if (product.originalPrice > product.price) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  '₹${product.originalPrice.toInt()}',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    fontSize: 12,
+                                    decoration: TextDecoration.lineThrough,
+                                    color: const Color(0xFF94A3B8),
                                   ),
                                 ),
                               ],
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // 2. Refined Meta Badges (Rating, Age, Stock)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          // Rating Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFFDE68A), width: 1.0),
                             ),
-
-                            const SizedBox(height: 16),
-
-                            // Badges Row (Age, Rating, In-Stock)
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              crossAxisAlignment: WrapCrossAlignment.center,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                // Star Rating Pill
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFEF3C7),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.star_rounded,
-                                        size: 15,
-                                        color: Color(0xFFD97706),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${product.rating} (${product.reviewCount})',
-                                        style: AppTypography.bodyLarge.copyWith(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: const Color(0xFF92400E),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                // Age Recommendation Pill
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F5F9),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    'Ages ${product.ageBadgeText}',
-                                    style: AppTypography.bodyLarge.copyWith(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF334155),
-                                    ),
-                                  ),
-                                ),
-
-                                // In Stock Status
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFDCFCE7),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    'In Stock',
-                                    style: AppTypography.bodyLarge.copyWith(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF15803D),
-                                    ),
+                                const Icon(Icons.star_rounded, size: 15, color: Color(0xFFD97706)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${product.rating} (${product.reviewCount})',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF92400E),
                                   ),
                                 ),
                               ],
                             ),
+                          ),
 
-                            const SizedBox(height: 18),
-
-                            // Description Paragraph
-                            Text(
-                              product.description.isNotEmpty
-                                  ? product.description
-                                  : 'Premium high-durability educational toy crafted for children to inspire creative problem solving, sensory motor skills, and imaginative storytelling in a safe and engaging manner.',
-                              style: AppTypography.bodyMedium.copyWith(
-                                fontSize: 14,
-                                height: 1.55,
-                                color: const Color(0xFF475569),
-                                letterSpacing: 0.1,
+                          // Age Recommendation Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                            ),
+                            child: Text(
+                              'Ages ${product.ageBadgeText}',
+                              style: AppTypography.bodySmall.copyWith(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF334155),
                               ),
                             ),
+                          ),
 
-                            // AI Room Fit Advisor Card (Available only for eligible equipment/furniture products)
-                            if (isRoomFitEligible) ...[
-                              const SizedBox(height: 18),
-                              GestureDetector(
-                                onTap: () => RoomFitModal.show(context, product),
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(18),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: ToyVerseTheme.primaryNavy.withValues(alpha: 0.18),
-                                        blurRadius: 16,
-                                        offset: const Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.all(8),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white.withValues(alpha: 0.12),
-                                                  borderRadius: BorderRadius.circular(10),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.home_work_rounded,
-                                                  size: 18,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Text(
-                                                'See Where It Fits in Your Room',
-                                                style: AppTypography.displayMedium.copyWith(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: ToyVerseTheme.primaryMintGreen.withValues(alpha: 0.2),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: ToyVerseTheme.primaryMintGreen.withValues(alpha: 0.5)),
-                                            ),
-                                            child: Text(
-                                              'AI ADVISOR',
-                                              style: AppTypography.bodySmall.copyWith(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w800,
-                                                color: ToyVerseTheme.primaryMintGreen,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        'Upload a photo of your room to get AI-guided space analysis, lighting optimization, and child safety clearances.',
-                                        style: AppTypography.bodyMedium.copyWith(
-                                          fontSize: 12,
-                                          height: 1.45,
-                                          color: Colors.white.withValues(alpha: 0.85),
-                                        ),
-                                      ),
-                                      if (product.dimensions != null && product.dimensions!.isNotEmpty) ...[
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.straighten_rounded, size: 13, color: Colors.white70),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                'Dimensions: ${product.dimensions}',
-                                                style: AppTypography.bodySmall.copyWith(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.white70,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                      const SizedBox(height: 14),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton.icon(
-                                          onPressed: () => RoomFitModal.show(context, product),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.white,
-                                            foregroundColor: const Color(0xFF0F172A),
-                                            padding: const EdgeInsets.symmetric(vertical: 12),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                            elevation: 0,
-                                          ),
-                                          icon: const Icon(Icons.camera_alt_rounded, size: 16, color: Color(0xFF0F172A)),
-                                          label: Text(
-                                            'Analyze Room Placement 📷',
-                                            style: AppTypography.bodyMedium.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 13,
-                                              color: const Color(0xFF0F172A),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                          // In Stock Pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFBBF7D0), width: 1.0),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF16A34A)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'In Stock',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF15803D),
                                   ),
                                 ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // 3. Description Paragraph
+                      Text(
+                        product.description.isNotEmpty
+                            ? product.description
+                            : 'High-quality equipment crafted with premium durability and safety standards for schools, therapy centers, and homes.',
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontSize: 14,
+                          height: 1.55,
+                          color: const Color(0xFF334155),
+                        ),
+                      ),
+
+                      // 4. AI Room Fit Advisor Card (Prominently featured on all products)
+                      if (isRoomFitEligible) ...[
+                        const SizedBox(height: 22),
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0F172A).withValues(alpha: 0.18),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6),
                               ),
                             ],
-
-                            const SizedBox(height: 20),
-
-                            // Hyderabad Fulfillment & Delivery Timeline Card
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Row(
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.1),
-                                          shape: BoxShape.circle,
+                                          color: Colors.white.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(10),
                                         ),
                                         child: const Icon(
-                                          Icons.local_shipping_rounded,
+                                          Icons.auto_awesome_rounded,
                                           size: 18,
-                                          color: ToyVerseTheme.primaryRoyalBlue,
+                                          color: Color(0xFF38BDF8),
                                         ),
                                       ),
                                       const SizedBox(width: 10),
                                       Text(
-                                        'Delivery & Dispatch Policy',
-                                        style: AppTypography.bodyLarge.copyWith(
-                                          fontSize: 14,
+                                        'AI Room Fit Advisor',
+                                        style: AppTypography.titleMedium.copyWith(
+                                          fontSize: 15,
                                           fontWeight: FontWeight.w800,
-                                          color: const Color(0xFF0F172A),
+                                          color: Colors.white,
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(Icons.location_on_outlined, size: 16, color: ToyVerseTheme.primaryRoyalBlue),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: RichText(
-                                          text: TextSpan(
-                                            style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: const Color(0xFF334155)),
-                                            children: const [
-                                              TextSpan(text: 'Dispatched from: ', style: TextStyle(fontWeight: FontWeight.w700)),
-                                              TextSpan(text: 'Guild Club Store, Hyderabad'),
-                                            ],
-                                          ),
-                                        ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                                        width: 1.0,
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(Icons.flash_on_rounded, size: 16, color: ToyVerseTheme.primaryOrange),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: RichText(
-                                          text: TextSpan(
-                                            style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: const Color(0xFF334155)),
-                                            children: const [
-                                              TextSpan(text: 'Hyderabad Local: ', style: TextStyle(fontWeight: FontWeight.w700)),
-                                              TextSpan(text: '2 to 3 days delivery'),
-                                            ],
-                                          ),
-                                        ),
+                                    ),
+                                    child: Text(
+                                      'GEMINI VISION',
+                                      style: AppTypography.bodySmall.copyWith(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF34D399),
+                                        letterSpacing: 0.4,
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(Icons.public_rounded, size: 16, color: ToyVerseTheme.primaryNavy),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: RichText(
-                                          text: TextSpan(
-                                            style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: const Color(0xFF334155)),
-                                            children: const [
-                                              TextSpan(text: 'Out of Hyderabad: ', style: TextStyle(fontWeight: FontWeight.w700)),
-                                              TextSpan(text: '7 to 8 working days delivery'),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(Icons.card_giftcard_rounded, size: 16, color: ToyVerseTheme.primaryMintGreen),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: RichText(
-                                          text: TextSpan(
-                                            style: AppTypography.bodyMedium.copyWith(fontSize: 12, color: const Color(0xFF334155)),
-                                            children: const [
-                                              TextSpan(text: 'Free Delivery: ', style: TextStyle(fontWeight: FontWeight.w700)),
-                                              TextSpan(text: 'On all orders above ₹499 (GST 5% included at checkout)'),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'Upload a photo of your room to get intelligent space analysis, lighting optimization, and child safety clearances.',
+                                style: AppTypography.bodyMedium.copyWith(
+                                  fontSize: 12.5,
+                                  height: 1.45,
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                ),
+                              ),
+                              if (product.dimensions != null && product.dimensions!.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.straighten_rounded, size: 14, color: Colors.white70),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Approx. Dimensions: ${product.dimensions}',
+                                        style: AppTypography.bodySmall.copyWith(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 14),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => RoomFitModal.show(context, product),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: const Color(0xFF0F172A),
+                                    padding: const EdgeInsets.symmetric(vertical: 13),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 17,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  label: Text(
+                                    'Launch AI Room Placement Advisor 📷',
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
 
-                            const SizedBox(height: 24),
+                      const SizedBox(height: 22),
+
+                      // 5. Hyderabad Fulfillment & Dispatch Policy
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: ToyVerseTheme.primaryRoyalBlue.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.local_shipping_rounded,
+                                    size: 18,
+                                    color: ToyVerseTheme.primaryRoyalBlue,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Delivery & Dispatch Policy',
+                                  style: AppTypography.titleMedium.copyWith(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.location_on_outlined, size: 16, color: ToyVerseTheme.primaryRoyalBlue),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        fontSize: 12,
+                                        color: const Color(0xFF334155),
+                                      ),
+                                      children: const [
+                                        TextSpan(text: 'Dispatched from: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                                        TextSpan(text: 'Guild Club Store, Hyderabad'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.flash_on_rounded, size: 16, color: Color(0xFFEA580C)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        fontSize: 12,
+                                        color: const Color(0xFF334155),
+                                      ),
+                                      children: const [
+                                        TextSpan(text: 'Hyderabad Local: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                                        TextSpan(text: '2 to 3 days delivery'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.public_rounded, size: 16, color: Color(0xFF0F172A)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        fontSize: 12,
+                                        color: const Color(0xFF334155),
+                                      ),
+                                      children: const [
+                                        TextSpan(text: 'Out of Hyderabad: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                                        TextSpan(text: '7 to 8 working days delivery'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.card_giftcard_rounded, size: 16, color: Color(0xFF16A34A)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        fontSize: 12,
+                                        color: const Color(0xFF334155),
+                                      ),
+                                      children: const [
+                                        TextSpan(text: 'Free Delivery: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                                        TextSpan(text: 'On all orders above ₹499 (GST 5% included at checkout)'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
+
+                      // Generous bottom spacing so all content scrolls cleanly above fixed bottom bar
+                      const SizedBox(height: 110),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 2. FLOATING TOP NAVIGATION BAR (Back Button + Cart Bag)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _CircularIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/');
+                        }
+                      },
                     ),
-
-                    // Fixed Bottom Action Bar (Wishlist + Add to Cart)
-                    Container(
-                      padding: EdgeInsets.fromLTRB(
-                        24,
-                        14,
-                        24,
-                        MediaQuery.of(context).padding.bottom + 14,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        border: Border(
-                          top: BorderSide(
-                            color: Color(0xFFF1F5F9),
-                            width: 1.2,
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          // 1. Wishlist Square Button (Magnetic Pop Heart)
-                          _SquareWishlistButton(
-                            isFavorite: isFavorite,
-                            onToggle: () {
-                              HapticFeedback.lightImpact();
-                              ref.read(wishlistProvider.notifier).toggleWishlist(product.id);
-                            },
-                          ),
-
-                          const SizedBox(width: 14),
-
-                          // 2. Large Add to Cart Button (reusing existing shape-morph animation)
-                          Expanded(
-                            child: _AddToCartButton(
-                              label: 'Add to Cart',
-                              onPressed: () {
-                                ref.read(cartProvider.notifier).addToCart(product);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${product.title} added to Cart! 🛒',
-                                      style: AppTypography.bodyLarge.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    backgroundColor: ToyVerseTheme.primaryMintGreen,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
+                    _CircularIconButton(
+                      icon: Icons.shopping_bag_outlined,
+                      badgeCount: cartItemCount,
+                      onPressed: () => context.push('/cart'),
                     ),
                   ],
                 ),
-              ).animate().slideY(
-                    begin: 0.15,
-                    end: 0,
-                    duration: 650.ms,
-                    curve: Curves.easeOutCubic,
-                  ),
+              ),
             ),
-          ],
-        ),
+          ),
+
+          // 3. FIXED BOTTOM ACTION BAR (Wishlist + Add to Cart)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                14,
+                20,
+                MediaQuery.of(context).padding.bottom + 14,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: const Border(
+                  top: BorderSide(color: Color(0xFFF1F5F9), width: 1.2),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 16,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  _SquareWishlistButton(
+                    isFavorite: isFavorite,
+                    onToggle: () {
+                      HapticFeedback.lightImpact();
+                      ref.read(wishlistProvider.notifier).toggleWishlist(product.id);
+                    },
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: _AddToCartButton(
+                      label: 'Add to Cart',
+                      onPressed: () {
+                        ref.read(cartProvider.notifier).addToCart(product);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '${product.title} added to Cart! 🛒',
+                              style: AppTypography.bodyLarge.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            backgroundColor: const Color(0xFF15803D),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Minimalist Circular Navigation Button on the Top Panel
+/// Minimalist Circular Navigation Button
 class _CircularIconButton extends StatefulWidget {
   final IconData icon;
   final VoidCallback onPressed;
@@ -891,7 +1004,7 @@ class _SquareWishlistButtonState extends State<_SquareWishlistButton>
   }
 }
 
-/// Add to Cart Button Reusing Shape-Morphing Sequence (Pill → Spinner → Checkmark → Collapse)
+/// Luxury Add to Cart Button Reusing Shape-Morphing Sequence
 class _AddToCartButton extends StatefulWidget {
   final String label;
   final VoidCallback onPressed;
@@ -955,7 +1068,11 @@ class _AddToCartButtonState extends State<_AddToCartButton>
             height: 52,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(

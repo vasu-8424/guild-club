@@ -256,10 +256,10 @@ class SupabaseService {
     return MockToyData.listingById(listingId);
   }
 
-  // 1. Fetch Products from Supabase or Fallback
+  // 1. Fetch Products exclusively from Supabase Database
   static Future<List<ProductModel>> fetchProducts() async {
     if (!isInitialized || client == null) {
-      return MockToyData.products;
+      return [];
     }
     try {
       final response = await client!
@@ -271,17 +271,10 @@ class SupabaseService {
           .map((map) => ProductModel.fromJson(map as Map<String, dynamic>))
           .toList();
 
-      final merged = <ProductModel>[...list];
-      for (final mockP in MockToyData.products) {
-        if (!merged.any((p) => p.id == mockP.id)) {
-          merged.add(mockP);
-        }
-      }
-
-      return merged.isEmpty ? MockToyData.products : merged;
+      return list;
     } catch (e) {
       if (kDebugMode) print('Error fetching Supabase products: $e');
-      return MockToyData.products;
+      return [];
     }
   }
 

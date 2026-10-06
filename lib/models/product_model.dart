@@ -57,10 +57,8 @@ class ProductModel {
 
   /// Resolves whether this product qualifies for the AI Room Fit Advisor
   bool isRoomFitSupported(List<CategoryModel> categories) {
-    if (supportsRoomFit != null) return supportsRoomFit!;
-    final cat = categories.where((c) => c.slug == categorySlug || c.id == categorySlug).firstOrNull;
-    if (cat != null) return cat.supportsRoomFit;
-    return CategoryModel.isSlugRoomFitSupported(categorySlug);
+    // Enabled for every product as requested
+    return true;
   }
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {

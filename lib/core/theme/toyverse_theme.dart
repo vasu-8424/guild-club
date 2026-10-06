@@ -145,6 +145,7 @@ class ToyVerseTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'PlusJakartaSans',
       scaffoldBackgroundColor: bgWarmWhite,
       colorScheme: const ColorScheme.light(
         primary: primaryRed,
@@ -154,16 +155,11 @@ class ToyVerseTheme {
       textTheme: TextTheme(
         displayLarge: AppTypography.displayLarge.copyWith(color: textDark),
         displayMedium: AppTypography.displayMedium.copyWith(color: textDark),
-        titleLarge: AppTypography.displayMedium.copyWith(
-          fontSize: 20,
-          color: textDark,
-        ),
-        titleMedium: AppTypography.bodyLarge.copyWith(
-          fontWeight: FontWeight.w600,
-          color: textDark,
-        ),
+        titleLarge: AppTypography.titleLarge.copyWith(color: textDark),
+        titleMedium: AppTypography.titleMedium.copyWith(color: textDark),
         bodyLarge: AppTypography.bodyLarge.copyWith(color: textDark),
         bodyMedium: AppTypography.bodyMedium.copyWith(color: textMuted),
+        bodySmall: AppTypography.bodySmall.copyWith(color: textMuted),
         labelLarge: AppTypography.bodyLarge.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.w600,

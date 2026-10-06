@@ -7,40 +7,55 @@ import 'package:flutter/material.dart';
 /// welcome line.
 abstract final class AppTypography {
   static const TextStyle displayLarge = TextStyle(
-    fontFamily: 'Outfit',
-    fontSize: 32,
+    fontFamily: 'PlusJakartaSans',
+    fontSize: 30,
     fontWeight: FontWeight.w700,
-    height: 1.08,
-    letterSpacing: -0.7,
+    height: 1.12,
+    letterSpacing: -0.6,
   );
 
   static const TextStyle displayMedium = TextStyle(
-    fontFamily: 'Outfit',
-    fontSize: 24,
+    fontFamily: 'PlusJakartaSans',
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    height: 1.18,
+    letterSpacing: -0.3,
+  );
+
+  static const TextStyle titleLarge = TextStyle(
+    fontFamily: 'PlusJakartaSans',
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+    height: 1.25,
+    letterSpacing: -0.2,
+  );
+
+  static const TextStyle titleMedium = TextStyle(
+    fontFamily: 'PlusJakartaSans',
+    fontSize: 15,
     fontWeight: FontWeight.w600,
-    height: 1.16,
-    letterSpacing: -0.4,
+    height: 1.3,
   );
 
   static const TextStyle bodyLarge = TextStyle(
     fontFamily: 'PlusJakartaSans',
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: FontWeight.w500,
-    height: 1.42,
+    height: 1.45,
   );
 
   static const TextStyle bodyMedium = TextStyle(
     fontFamily: 'PlusJakartaSans',
     fontSize: 13,
-    fontWeight: FontWeight.w500,
-    height: 1.4,
+    fontWeight: FontWeight.w400,
+    height: 1.45,
   );
 
   static const TextStyle bodySmall = TextStyle(
     fontFamily: 'PlusJakartaSans',
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: FontWeight.w400,
-    height: 1.35,
+    height: 1.38,
   );
 
   static const TextStyle accentScript = TextStyle(
@@ -54,9 +69,10 @@ abstract final class AppTypography {
 
   static const TextStyle priceNumeral = TextStyle(
     fontFamily: 'PlusJakartaSans',
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
-    height: 1.2,
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+    height: 1.15,
+    letterSpacing: -0.4,
     fontFeatures: [FontFeature.tabularFigures()],
   );
 }
