@@ -40,6 +40,9 @@ dependencies:
   video_player: ^2.9.2
   shared_preferences: ^2.5.5
   url_launcher: ^6.3.0
+  http: ^1.2.0
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

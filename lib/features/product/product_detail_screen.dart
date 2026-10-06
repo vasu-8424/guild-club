@@ -12,6 +12,7 @@ import '../../core/theme/toyverse_theme.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_providers.dart';
 import '../../repositories/mock_toy_data.dart';
+import 'widgets/room_fit_modal.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final String productId;
@@ -58,10 +59,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(productsProvider);
+    final categories = ref.watch(categoriesProvider);
     final product = products.firstWhere(
       (p) => p.id == widget.productId,
-      orElse: () => MockToyData.products.first,
+      orElse: () => MockToyData.products.firstWhere(
+        (p) => p.id == widget.productId,
+        orElse: () => MockToyData.products.first,
+      ),
     );
+    final isRoomFitEligible = product.isRoomFitSupported(categories);
 
     final wishlist = ref.watch(wishlistProvider);
     final isFavorite = wishlist.contains(product.id);
@@ -361,6 +367,134 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                                 letterSpacing: 0.1,
                               ),
                             ),
+
+                            // AI Room Fit Advisor Card (Available only for eligible equipment/furniture products)
+                            if (isRoomFitEligible) ...[
+                              const SizedBox(height: 18),
+                              GestureDetector(
+                                onTap: () => RoomFitModal.show(context, product),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(18),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: ToyVerseTheme.primaryNavy.withValues(alpha: 0.18),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white.withValues(alpha: 0.12),
+                                                  borderRadius: BorderRadius.circular(10),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.home_work_rounded,
+                                                  size: 18,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Text(
+                                                'See Where It Fits in Your Room',
+                                                style: AppTypography.displayMedium.copyWith(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: ToyVerseTheme.primaryMintGreen.withValues(alpha: 0.2),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: ToyVerseTheme.primaryMintGreen.withValues(alpha: 0.5)),
+                                            ),
+                                            child: Text(
+                                              'AI ADVISOR',
+                                              style: AppTypography.bodySmall.copyWith(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w800,
+                                                color: ToyVerseTheme.primaryMintGreen,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        'Upload a photo of your room to get AI-guided space analysis, lighting optimization, and child safety clearances.',
+                                        style: AppTypography.bodyMedium.copyWith(
+                                          fontSize: 12,
+                                          height: 1.45,
+                                          color: Colors.white.withValues(alpha: 0.85),
+                                        ),
+                                      ),
+                                      if (product.dimensions != null && product.dimensions!.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.straighten_rounded, size: 13, color: Colors.white70),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                'Dimensions: ${product.dimensions}',
+                                                style: AppTypography.bodySmall.copyWith(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.white70,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                      const SizedBox(height: 14),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          onPressed: () => RoomFitModal.show(context, product),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: const Color(0xFF0F172A),
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            elevation: 0,
+                                          ),
+                                          icon: const Icon(Icons.camera_alt_rounded, size: 16, color: Color(0xFF0F172A)),
+                                          label: Text(
+                                            'Analyze Room Placement 📷',
+                                            style: AppTypography.bodyMedium.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 13,
+                                              color: const Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
 
                             const SizedBox(height: 20),
 

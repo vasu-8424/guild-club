@@ -151,10 +151,10 @@ class _ToyButtonState extends State<ToyButton> with SingleTickerProviderStateMix
     }
 
     return GestureDetector(
+      onTap: (!widget.isLoading && widget.onPressed != null) ? widget.onPressed : null,
       onTapDown: (_) => _controller.forward(),
       onTapUp: (_) {
         _controller.reverse();
-        if (!widget.isLoading && widget.onPressed != null) widget.onPressed!();
       },
       onTapCancel: () => _controller.reverse(),
       child: ScaleTransition(

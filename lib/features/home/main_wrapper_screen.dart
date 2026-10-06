@@ -278,6 +278,15 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                                   children: [
                                     Row(
                                       children: [
+                                        ClipOval(
+                                          child: Image.asset(
+                                            'assets/images/app_logo.png',
+                                            width: 24,
+                                            height: 24,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
                                         AnimatedBuilder(
                                           animation: _headerController,
                                           builder: (context, child) {

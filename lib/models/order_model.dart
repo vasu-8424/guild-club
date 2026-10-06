@@ -1,4 +1,4 @@
-﻿import 'product_model.dart';
+import 'product_model.dart';
 import 'address_model.dart';
 import '../core/services/location_service.dart';
 
@@ -288,7 +288,7 @@ class OrderModel {
   }
 
   /// Human-readable delivery timeline description based on destination
-  String get deliveryTimelineText => isLocalToHyderabad ? '2â€“3 Working Days' : '7â€“8 Working Days';
+  String get deliveryTimelineText => isLocalToHyderabad ? '2-3 Working Days' : '7-8 Working Days';
 
   /// Helper to get formatted timestamp for a given status step
   String? getStatusTimestamp(OrderStatus stage) {

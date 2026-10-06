@@ -12,6 +12,7 @@ class CategoryModel {
   final int itemCount;
   final bool isActive;
   final bool hasSubcategories;
+  final bool supportsRoomFit;
 
   const CategoryModel({
     required this.id,
@@ -25,6 +26,7 @@ class CategoryModel {
     this.itemCount = 0,
     this.isActive = true,
     this.hasSubcategories = false,
+    this.supportsRoomFit = false,
   });
 
   // Legacy compatibility getters
@@ -165,12 +167,35 @@ class CategoryModel {
 
   IconData get icon => resolveIcon(iconKey.isNotEmpty ? iconKey : slug);
 
+  /// Helper to check if a category slug/name naturally supports AI Room Fit
+  static bool isSlugRoomFitSupported(String? identifier) {
+    if (identifier == null || identifier.isEmpty) return false;
+    final clean = identifier.toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+    return clean.contains('child_development') ||
+        clean.contains('interior_design') ||
+        clean.contains('play_school') ||
+        clean.contains('school') ||
+        clean.contains('occupational_therapy') ||
+        clean.contains('special_education') ||
+        clean.contains('behavioural_therapy') ||
+        clean.contains('speech_therapy') ||
+        clean.contains('c1000000_0000_0000_0000_000000000001') ||
+        clean.contains('c1000000_0000_0000_0000_000000000002') ||
+        clean.contains('c1000000_0000_0000_0000_000000000003') ||
+        clean.contains('c1000000_0000_0000_0000_000000000004');
+  }
+
   factory CategoryModel.fromJson(Map<String, dynamic> json, {bool hasSubcategories = false}) {
+    final slug = json['slug']?.toString() ?? '';
+    final iconKey = json['icon_key']?.toString() ?? json['icon_name']?.toString() ?? '';
+    final id = json['id']?.toString() ?? '';
+    final dbRoomFit = json['supports_room_fit'] as bool?;
+
     return CategoryModel(
-      id: json['id']?.toString() ?? '',
+      id: id,
       name: json['name']?.toString() ?? '',
-      slug: json['slug']?.toString() ?? '',
-      iconKey: json['icon_key']?.toString() ?? json['icon_name']?.toString() ?? '',
+      slug: slug,
+      iconKey: iconKey,
       parentId: json['parent_id']?.toString(),
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
       colorHex: json['color_hex']?.toString() ?? '#1E3A8A',
@@ -178,6 +203,7 @@ class CategoryModel {
       itemCount: (json['item_count'] as num?)?.toInt() ?? 0,
       isActive: json['is_active'] as bool? ?? true,
       hasSubcategories: hasSubcategories || (json['has_subcategories'] as bool? ?? false),
+      supportsRoomFit: dbRoomFit ?? isSlugRoomFitSupported(slug.isNotEmpty ? slug : (iconKey.isNotEmpty ? iconKey : id)),
     );
   }
 
@@ -192,6 +218,7 @@ class CategoryModel {
       'color_hex': colorHex,
       'banner_url': bannerUrl,
       'is_active': isActive,
+      'supports_room_fit': supportsRoomFit,
     };
   }
 
@@ -207,6 +234,7 @@ class CategoryModel {
     int? itemCount,
     bool? isActive,
     bool? hasSubcategories,
+    bool? supportsRoomFit,
   }) {
     return CategoryModel(
       id: id ?? this.id,
@@ -220,6 +248,7 @@ class CategoryModel {
       itemCount: itemCount ?? this.itemCount,
       isActive: isActive ?? this.isActive,
       hasSubcategories: hasSubcategories ?? this.hasSubcategories,
+      supportsRoomFit: supportsRoomFit ?? this.supportsRoomFit,
     );
   }
 }

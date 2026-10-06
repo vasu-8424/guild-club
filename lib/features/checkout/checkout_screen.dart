@@ -474,7 +474,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
-                                            'GPS: ${selectedAddress.latitude.toStringAsFixed(4)}, ${selectedAddress.longitude.toStringAsFixed(4)} â€¢ ${selectedAddress.city}',
+                                            'GPS: ${selectedAddress.latitude.toStringAsFixed(4)}, ${selectedAddress.longitude.toStringAsFixed(4)}  -  ${selectedAddress.city}',
                                             style: AppTypography.bodyMedium.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: ToyVerseTheme.primaryNavy),
                                           ),
                                         ),
@@ -522,7 +522,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> with TickerProv
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
-                                        'Landmark: Post Office â€¢ Hyderabad Local: 2â€“3 Days â€¢ Outside: 7â€“8 Days',
+                                        'Landmark: Post Office  -  Hyderabad Local: 2-3 Days  -  Outside: 7-8 Days',
                                         style: AppTypography.bodyMedium.copyWith(fontSize: 11, color: ToyVerseTheme.textDark, fontWeight: FontWeight.w600),
                                       ),
                                     ],

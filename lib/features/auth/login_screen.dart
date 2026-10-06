@@ -174,6 +174,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
+  void _handleGuestLogin() {
+    HapticFeedback.lightImpact();
+    ref.read(userProvider.notifier).setUser(
+      const UserModel(
+        id: 'guest_user_preview',
+        fullName: 'Guild Club Member',
+        email: 'member@guildclub.in',
+        phone: '+91 9876543210',
+        avatarUrl: '',
+        rewardCoins: 500,
+        children: [],
+      ),
+    );
+    ref.invalidate(userDataProvider);
+    context.go('/');
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -310,7 +327,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 curve: Curves.easeOutCubic,
                               ),
 
-                          SizedBox(height: isCompact ? 16 : 24),
+                          const SizedBox(height: 12),
+
+                          // Explore as Guest / Instant Preview Option
+                          TextButton(
+                            onPressed: _handleGuestLogin,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white.withValues(alpha: 0.9),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Explore as Guest',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.95),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: Colors.white.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),
+                              ],
+                            ),
+                          ),
+
+                          SizedBox(height: isCompact ? 12 : 18),
                         ],
                       ),
                     ),

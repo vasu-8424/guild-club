@@ -1,3 +1,5 @@
+import 'category_model.dart';
+
 class ProductModel {
   final String id;
   final String title;
@@ -21,6 +23,8 @@ class ProductModel {
   final bool isFeatured;
   final bool isLimitedEdition;
   final List<String> availableColors;
+  final bool? supportsRoomFit;
+  final String? dimensions;
 
   const ProductModel({
     required this.id,
@@ -45,9 +49,19 @@ class ProductModel {
     this.isFeatured = false,
     this.isLimitedEdition = false,
     this.availableColors = const ['#FF4B4B', '#3B82F6', '#10B981', '#FFD000'],
+    this.supportsRoomFit,
+    this.dimensions,
   });
 
   String get ageBadgeText => '$minAge-$maxAge Yrs';
+
+  /// Resolves whether this product qualifies for the AI Room Fit Advisor
+  bool isRoomFitSupported(List<CategoryModel> categories) {
+    if (supportsRoomFit != null) return supportsRoomFit!;
+    final cat = categories.where((c) => c.slug == categorySlug || c.id == categorySlug).firstOrNull;
+    if (cat != null) return cat.supportsRoomFit;
+    return CategoryModel.isSlugRoomFitSupported(categorySlug);
+  }
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     List<String> images = [];
@@ -91,6 +105,8 @@ class ProductModel {
       isBestSeller: json['is_best_seller'] as bool? ?? false,
       isFeatured: json['is_featured'] as bool? ?? false,
       isLimitedEdition: json['is_limited_edition'] as bool? ?? false,
+      supportsRoomFit: json['supports_room_fit'] as bool?,
+      dimensions: json['dimensions']?.toString(),
     );
   }
 
@@ -118,6 +134,8 @@ class ProductModel {
       'isFeatured': isFeatured,
       'isLimitedEdition': isLimitedEdition,
       'availableColors': availableColors,
+      'supports_room_fit': supportsRoomFit,
+      'dimensions': dimensions,
     };
   }
 }

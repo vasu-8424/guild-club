@@ -271,7 +271,14 @@ class SupabaseService {
           .map((map) => ProductModel.fromJson(map as Map<String, dynamic>))
           .toList();
 
-      return list.isEmpty ? MockToyData.products : list;
+      final merged = <ProductModel>[...list];
+      for (final mockP in MockToyData.products) {
+        if (!merged.any((p) => p.id == mockP.id)) {
+          merged.add(mockP);
+        }
+      }
+
+      return merged.isEmpty ? MockToyData.products : merged;
     } catch (e) {
       if (kDebugMode) print('Error fetching Supabase products: $e');
       return MockToyData.products;

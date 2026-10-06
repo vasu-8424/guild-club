@@ -31,7 +31,7 @@ class PrivacyPolicyScreen extends StatefulWidget {
 class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
   final ScrollController _scrollController = ScrollController();
 
-  final List<GlobalKey> _sectionKeys = List.generate(8, (_) => GlobalKey());
+  final List<GlobalKey> _sectionKeys = List.generate(9, (_) => GlobalKey());
 
   void _scrollToSection(int index) {
     final keyContext = _sectionKeys[index].currentContext;
@@ -209,10 +209,11 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                                 _buildTocChip(1, '2. Children’s Privacy'),
                                 _buildTocChip(2, '3. How We Use Data'),
                                 _buildTocChip(3, '4. Third-Party Services'),
-                                _buildTocChip(4, '5. Location & GPS'),
-                                _buildTocChip(5, '6. Security & Retention'),
-                                _buildTocChip(6, '7. Your Rights'),
-                                _buildTocChip(7, '8. Contact & Grievance'),
+                                _buildTocChip(4, '5. AI Room Fit Advisor'),
+                                _buildTocChip(5, '6. Location & GPS'),
+                                _buildTocChip(6, '7. Security & Retention'),
+                                _buildTocChip(7, '8. Your Rights'),
+                                _buildTocChip(8, '9. Contact & Grievance'),
                               ],
                             ),
                           ],
@@ -326,10 +327,39 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Section 5: Location & GPS Data Collection
+                      // Section 5: AI Room Fit Advisor & Image Processing
                       _buildSectionCard(
                         key: _sectionKeys[4],
                         sectionNumber: '5',
+                        title: 'AI Room Fit Advisor & Image Processing',
+                        icon: Icons.home_work_outlined,
+                        accentColor: ToyVerseTheme.primaryNavy,
+                        content: [
+                          _buildBullet(
+                            'Purpose & Scope of Analysis:',
+                            'When you use the AI Room Fit feature on eligible equipment and furniture products, your uploaded room photo is analyzed by an AI vision service (Google Gemini / Anthropic via server-side Edge Functions) solely to estimate room dimensions, ambient lighting, traffic flow, and child safety clearances.',
+                          ),
+                          _buildBullet(
+                            'In-Memory Processing & Ephemeral Retention:',
+                            'Room photos are processed in temporary server memory and are automatically discarded immediately upon generating the placement recommendation. Guild Club does NOT store or retain your room photos in permanent database storage by default.',
+                          ),
+                          _buildBullet(
+                            'Optional Profile Saving (Explicit Opt-In):',
+                            'If you explicitly tap "Save to Profile", your room photo is stored in your private, authenticated account folder on Supabase Storage. You can delete saved room photos at any time.',
+                          ),
+                          _buildBullet(
+                            'No Model Training or Advertising Use:',
+                            'Your uploaded room photos are never used to train public machine learning models, nor are they shared with marketing third parties.',
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Section 6: Location & GPS Data Collection
+                      _buildSectionCard(
+                        key: _sectionKeys[5],
+                        sectionNumber: '6',
                         title: 'Location & GPS Data Collection',
                         icon: Icons.my_location_rounded,
                         content: [
@@ -347,9 +377,10 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                       const SizedBox(height: 16),
 
                       // Section 6: Security & Data Retention
+                      // Section 7: Security & Data Retention
                       _buildSectionCard(
-                        key: _sectionKeys[5],
-                        sectionNumber: '6',
+                        key: _sectionKeys[6],
+                        sectionNumber: '7',
                         title: 'Security Safeguards & Data Retention',
                         icon: Icons.lock_outline_rounded,
                         content: [
@@ -366,10 +397,10 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Section 7: User Rights & Account Deletion
+                      // Section 8: User Rights & Account Deletion
                       _buildSectionCard(
-                        key: _sectionKeys[6],
-                        sectionNumber: '7',
+                        key: _sectionKeys[7],
+                        sectionNumber: '8',
                         title: 'Your Rights & Account Deletion',
                         icon: Icons.manage_accounts_outlined,
                         content: [
@@ -386,10 +417,10 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Section 8: Contact Information & Grievance Officer
+                      // Section 9: Contact Information & Grievance Officer
                       _buildSectionCard(
-                        key: _sectionKeys[7],
-                        sectionNumber: '8',
+                        key: _sectionKeys[8],
+                        sectionNumber: '9',
                         title: 'Contact Information & Grievance Redressal',
                         icon: Icons.contact_mail_outlined,
                         accentColor: ToyVerseTheme.primaryNavy,

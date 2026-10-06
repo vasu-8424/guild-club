@@ -65,6 +65,7 @@ class _SpringPressableState extends State<SpringPressable> with SingleTickerProv
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
       onTapDown: widget.onTap != null ? _onTapDown : null,
       onTapUp: widget.onTap != null ? _onTapUp : null,
       onTapCancel: widget.onTap != null ? _onTapCancel : null,

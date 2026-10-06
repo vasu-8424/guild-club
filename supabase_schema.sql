@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
     color_hex TEXT DEFAULT '#1E3A8A',
     banner_url TEXT,
     is_active BOOLEAN DEFAULT true,
+    supports_room_fit BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -99,7 +100,8 @@ CREATE TABLE IF NOT EXISTS public.products (
     is_best_seller BOOLEAN DEFAULT false,
     is_featured BOOLEAN DEFAULT false,
     is_limited_edition BOOLEAN DEFAULT false,
-    ar_model_url TEXT,
+    supports_room_fit BOOLEAN DEFAULT NULL,
+    dimensions TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -353,6 +355,29 @@ USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
 -- =================================================================
+-- SCHEMA SAFETY & MIGRATION STATEMENTS (Ensures all columns exist before seeding)
+-- =================================================================
+
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES public.categories(id) ON DELETE CASCADE;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS color_hex TEXT DEFAULT '#1E3A8A';
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS banner_url TEXT;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS supports_room_fit BOOLEAN DEFAULT false;
+
+ALTER TABLE public.children ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+ALTER TABLE public.children ADD COLUMN IF NOT EXISTS favorite_character TEXT;
+ALTER TABLE public.children ADD COLUMN IF NOT EXISTS learning_level TEXT DEFAULT 'beginner';
+
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS supports_room_fit BOOLEAN DEFAULT NULL;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS dimensions TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS educational_type TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_trending BOOLEAN DEFAULT false;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN DEFAULT false;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_limited_edition BOOLEAN DEFAULT false;
+
+-- =================================================================
 -- CATEGORIES & LISTINGS RLS POLICIES & SEED DATA
 -- =================================================================
 
@@ -370,7 +395,7 @@ ON public.listings FOR SELECT
 USING (is_active = true);
 
 -- TOP-LEVEL CATEGORIES SEED DATA (Explicit Heraldic Crest Palette Rotation)
-INSERT INTO public.categories (id, name, slug, icon_key, parent_id, sort_order, color_hex, is_active)
+INSERT INTO public.categories (id, name, slug, icon_key, parent_id, sort_order, color_hex, is_active, supports_room_fit)
 VALUES
     ('c1000000-0000-0000-0000-000000000001', 'Play Schools', 'play-schools', 'play_schools', NULL, 1, '#1E3A8A', true),
     ('c1000000-0000-0000-0000-000000000002', 'Child Development Centers', 'child-development-centers', 'child_development', NULL, 2, '#B91C1C', true),
@@ -385,19 +410,20 @@ SET name = EXCLUDED.name,
     is_active = EXCLUDED.is_active;
 
 -- SUBCATEGORIES SEED DATA (Under Child Development Centers - Explicit Heraldic Color Rotation)
-INSERT INTO public.categories (id, name, slug, icon_key, parent_id, sort_order, color_hex, is_active)
+INSERT INTO public.categories (id, name, slug, icon_key, parent_id, sort_order, color_hex, is_active, supports_room_fit)
 VALUES
-    ('c2000000-0000-0000-0000-000000000001', 'Speech Therapy', 'speech-therapy', 'speech_therapy', 'c1000000-0000-0000-0000-000000000002', 1, '#1E3A8A', true),
-    ('c2000000-0000-0000-0000-000000000002', 'Occupational Therapy', 'occupational-therapy', 'occupational_therapy', 'c1000000-0000-0000-0000-000000000002', 2, '#B91C1C', true),
-    ('c2000000-0000-0000-0000-000000000003', 'Behavioural Therapy', 'behavioural-therapy', 'behavioural_therapy', 'c1000000-0000-0000-0000-000000000002', 3, '#0F172A', true),
-    ('c2000000-0000-0000-0000-000000000004', 'Special Education', 'special-education', 'special_education', 'c1000000-0000-0000-0000-000000000002', 4, '#FFFFFF', true)
+    ('c2000000-0000-0000-0000-000000000001', 'Speech Therapy', 'speech-therapy', 'speech_therapy', 'c1000000-0000-0000-0000-000000000002', 1, '#1E3A8A', true, true),
+    ('c2000000-0000-0000-0000-000000000002', 'Occupational Therapy', 'occupational-therapy', 'occupational_therapy', 'c1000000-0000-0000-0000-000000000002', 2, '#B91C1C', true, true),
+    ('c2000000-0000-0000-0000-000000000003', 'Behavioural Therapy', 'behavioural-therapy', 'behavioural_therapy', 'c1000000-0000-0000-0000-000000000002', 3, '#0F172A', true, true),
+    ('c2000000-0000-0000-0000-000000000004', 'Special Education', 'special-education', 'special_education', 'c1000000-0000-0000-0000-000000000002', 4, '#FFFFFF', true, true)
 ON CONFLICT (slug) DO UPDATE
 SET name = EXCLUDED.name,
     icon_key = EXCLUDED.icon_key,
     parent_id = EXCLUDED.parent_id,
     sort_order = EXCLUDED.sort_order,
     color_hex = EXCLUDED.color_hex,
-    is_active = EXCLUDED.is_active;
+    is_active = EXCLUDED.is_active,
+    supports_room_fit = EXCLUDED.supports_room_fit;
 
 -- SAMPLE LISTINGS SEED DATA
 INSERT INTO public.listings (id, category_id, name, description, primary_photo_url, gallery_urls, rating, review_count, address, city, distance_km, price_range, is_verified, is_active, phone, whatsapp, operating_hours, age_group)
@@ -439,5 +465,48 @@ SET name = EXCLUDED.name,
     whatsapp = EXCLUDED.whatsapp,
     operating_hours = EXCLUDED.operating_hours,
     age_group = EXCLUDED.age_group;
+
+-- 15. AI ROOM FIT USAGE & RATE LIMITING TABLE
+CREATE TABLE IF NOT EXISTS public.room_fit_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL,
+    usage_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    request_count INTEGER NOT NULL DEFAULT 1,
+    last_request_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(user_id, usage_date)
+);
+
+-- Enable RLS for room_fit_usage
+ALTER TABLE public.room_fit_usage ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own room fit usage"
+ON public.room_fit_usage FOR SELECT
+USING (auth.uid()::text = user_id OR user_id = 'anon_user');
+
+CREATE POLICY "Service role can manage room fit usage"
+ON public.room_fit_usage FOR ALL
+USING (true)
+WITH CHECK (true);
+
+-- MIGRATION HELPERS (For existing databases)
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS supports_room_fit BOOLEAN DEFAULT false;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS supports_room_fit BOOLEAN DEFAULT NULL;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS dimensions TEXT;
+
+-- Update categories to enable room fit for educational equipment, interior design & play school furniture
+UPDATE public.categories
+SET supports_room_fit = true
+WHERE slug IN (
+    'play-schools',
+    'child-development-centers',
+    'schools',
+    'interior-designing',
+    'speech-therapy',
+    'occupational-therapy',
+    'behavioural-therapy',
+    'special-education'
+);
+
 
 
