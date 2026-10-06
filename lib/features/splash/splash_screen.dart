@@ -161,19 +161,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: ToyVerseTheme.primaryNavy.withValues(alpha: 0.18),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 10),
+                                  color: ToyVerseTheme.primaryNavy.withValues(alpha: 0.16),
+                                  blurRadius: 28,
+                                  offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/images/app_logo.png',
-                                width: 130,
-                                height: 130,
-                                fit: BoxFit.cover,
-                              ),
+                            child: Image.asset(
+                              'assets/images/app_logo.png',
+                              width: 130,
+                              height: 130,
+                              fit: BoxFit.contain,
                             ),
                           ),
                         ),

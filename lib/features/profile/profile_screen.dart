@@ -298,20 +298,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = ref.watch(userProvider);
     final addresses = ref.watch(addressesProvider);
 
-    return Scaffold(
-      body: FloatingCloudsBackground(
-        child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(userDataProvider);
-              await ref.read(userDataProvider.future);
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 95),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(userDataProvider);
+        await ref.read(userDataProvider.future);
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 95),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
                   // Header Profile Info Card
                   GlassCard(
                     padding: const EdgeInsets.all(20),
@@ -726,10 +723,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
+          );
   }
 
   Widget _buildSwitchTile({

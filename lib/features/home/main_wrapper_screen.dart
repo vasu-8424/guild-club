@@ -209,7 +209,7 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
               // Page Body View
               Positioned.fill(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 78),
+                  padding: const EdgeInsets.only(top: 84),
                   child: IndexedStack(
                     index: _currentIndex,
                     children: _pages,
@@ -238,28 +238,28 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.white.withValues(alpha: 0.84),
-                          Colors.white.withValues(alpha: 0.72),
+                          Colors.white.withValues(alpha: 0.92),
+                          Colors.white.withValues(alpha: 0.85),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(ToyVerseTheme.radiusNavigation),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.white.withValues(alpha: 0.95),
                         width: 1.0,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: ToyVerseTheme.primaryNavy.withValues(alpha: 0.10),
+                          color: ToyVerseTheme.primaryNavy.withValues(alpha: 0.08),
                           blurRadius: 18,
                           spreadRadius: 0,
-                          offset: const Offset(0, 10),
+                          offset: const Offset(0, 8),
                         ),
                         BoxShadow(
-                          color: ToyVerseTheme.primaryRed.withValues(alpha: 0.08),
-                          blurRadius: 26,
-                          spreadRadius: 4,
+                          color: ToyVerseTheme.primaryRed.withValues(alpha: 0.05),
+                          blurRadius: 20,
+                          spreadRadius: 2,
                         ),
                       ],
                     ),
@@ -268,9 +268,10 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                       child: BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           child: Row(
                             children: [
+                              // Left Branding & Location
                               Expanded(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -278,38 +279,26 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                                   children: [
                                     Row(
                                       children: [
-                                        ClipOval(
-                                          child: Image.asset(
-                                            'assets/images/app_logo.png',
-                                            width: 24,
-                                            height: 24,
-                                            fit: BoxFit.cover,
-                                          ),
+                                        Image.asset(
+                                          'assets/images/app_logo.png',
+                                          width: 26,
+                                          height: 26,
+                                          fit: BoxFit.contain,
                                         ),
-                                        const SizedBox(width: 8),
-                                        AnimatedBuilder(
-                                          animation: _headerController,
-                                          builder: (context, child) {
-                                            final reveal = Curves.easeOutCubic.transform(_headerController.value);
-                                            return Transform.translate(
-                                              offset: Offset(-12 + (reveal * 12), 0),
-                                              child: Opacity(
-                                                opacity: reveal.clamp(0.0, 1.0),
-                                                child: child,
-                                              ),
-                                            );
-                                          },
+                                        const SizedBox(width: 7),
+                                        Flexible(
                                           child: Text(
                                             'Guild Club',
-                                            style: AppTypography.displayMedium.copyWith(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppTypography.titleMedium.copyWith(
+                                              fontSize: 16.5,
+                                              fontWeight: FontWeight.w800,
                                               color: ToyVerseTheme.textDark,
-                                              letterSpacing: -0.5,
+                                              letterSpacing: -0.3,
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(width: 5),
                                         AnimatedBuilder(
                                           animation: _coinPulseController,
                                           builder: (context, child) {
@@ -322,27 +311,20 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                                           child: SpringPressable(
                                             onTap: () => context.push('/rewards'),
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                               decoration: BoxDecoration(
                                                 color: ToyVerseTheme.primaryRed.withValues(alpha: 0.12),
-                                                borderRadius: BorderRadius.circular(10),
+                                                borderRadius: BorderRadius.circular(8),
                                                 border: Border.all(
                                                   color: ToyVerseTheme.primaryRed.withValues(alpha: 0.28),
                                                   width: 0.8,
                                                 ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: ToyVerseTheme.primaryRed.withValues(alpha: 0.16),
-                                                    blurRadius: 12,
-                                                    offset: const Offset(0, 3),
-                                                  ),
-                                                ],
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(Icons.stars_rounded, size: 12, color: ToyVerseTheme.primaryRed),
-                                                  const SizedBox(width: 3),
+                                                  const Icon(Icons.stars_rounded, size: 11, color: ToyVerseTheme.primaryRed),
+                                                  const SizedBox(width: 2),
                                                   Text(
                                                     '${user.rewardCoins}',
                                                     style: AppTypography.priceNumeral.copyWith(
@@ -358,42 +340,36 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                                         ),
                                       ],
                                     ),
-                                    AnimatedBuilder(
-                                      animation: _headerController,
-                                      builder: (context, child) {
-                                        final reveal = Curves.easeOutCubic.transform(_headerController.value);
-                                        return Transform.translate(
-                                          offset: Offset(-8 + (reveal * 8), 0),
-                                          child: Opacity(
-                                            opacity: (reveal * 0.8).clamp(0.0, 1.0),
-                                            child: child,
-                                          ),
-                                        );
-                                      },
-                                      child: GestureDetector(
-                                        onTap: () => context.push('/address-picker'),
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.location_on_outlined, size: 12, color: ToyVerseTheme.textMuted),
-                                            const SizedBox(width: 2),
-                                            Flexible(
-                                              child: Text(
-                                                displayLocation,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: AppTypography.bodySmall.copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                  color: ToyVerseTheme.textMuted,
-                                                ),
+                                    const SizedBox(height: 1),
+                                    GestureDetector(
+                                      onTap: () => context.push('/address-picker'),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.location_on_outlined, size: 11, color: ToyVerseTheme.textMuted),
+                                          const SizedBox(width: 2),
+                                          Flexible(
+                                            child: Text(
+                                              displayLocation,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: AppTypography.bodySmall.copyWith(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: ToyVerseTheme.textMuted,
                                               ),
                                             ),
-                                            const Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: ToyVerseTheme.textMuted),
-                                          ],
-                                        ),
+                                          ),
+                                          const Icon(Icons.keyboard_arrow_down_rounded, size: 13, color: ToyVerseTheme.textMuted),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
+
+                              const SizedBox(width: 6),
+
+                              // Right Action Buttons
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -401,7 +377,7 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                                     icon: Icons.search_rounded,
                                     onTap: () => context.push('/search'),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 6),
                                   badges.Badge(
                                     position: badges.BadgePosition.topEnd(top: -2, end: -2),
                                     badgeContent: Text(
@@ -411,7 +387,7 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                                     showBadge: wishlistCount > 0,
                                     badgeStyle: const badges.BadgeStyle(
                                       badgeColor: ToyVerseTheme.primaryRed,
-                                      padding: EdgeInsets.all(5),
+                                      padding: EdgeInsets.all(4),
                                       elevation: 0,
                                     ),
                                     child: _buildHeaderIconButton(
@@ -419,7 +395,7 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                                       onTap: () => context.push('/wishlist'),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 6),
                                   badges.Badge(
                                     position: badges.BadgePosition.topEnd(top: -2, end: -2),
                                     badgeContent: Text(
@@ -429,7 +405,7 @@ class _MainWrapperScreenState extends ConsumerState<MainWrapperScreen>
                                     showBadge: cartCount > 0,
                                     badgeStyle: const badges.BadgeStyle(
                                       badgeColor: ToyVerseTheme.accentCoral,
-                                      padding: EdgeInsets.all(5),
+                                      padding: EdgeInsets.all(4),
                                       elevation: 0,
                                     ),
                                     child: KeyedSubtree(
